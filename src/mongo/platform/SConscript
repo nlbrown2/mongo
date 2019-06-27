@@ -1,5 +1,7 @@
 # -*- mode: python -*-
 
+import sys
+
 Import("env")
 
 env = env.Clone()
@@ -16,6 +18,33 @@ env.CppUnitTest(
         'stack_locator_test.cpp',
         'decimal128_test.cpp',
         'decimal128_bson_test.cpp',
-        'overflow_arithmetic_test.cpp'
+        'overflow_arithmetic_test.cpp',
     ],
 )
+
+usdt_probe_test_py = env.InstallAs(
+    'pyboi',
+    source=['pyboi.py'],
+)
+
+usdt_probe_test_cpp = env.Program(
+    target='usdt_probe_test',
+    source=[
+        'usdt_probe_test.cpp',
+    ]
+)
+
+usdt_probe_test_dict = {
+    '@usdt_probe_test_python_interpreter@' : sys.executable.replace('\\', r'\\'),
+    '@usdt_probe_test_py@' : usdt_probe_test_py[0].name,
+    '@usdt_probe_test_cpp@' : usdt_probe_test_cpp[0].name,
+}
+
+usdt_probe_test_wrapper = env.Substfile(
+    'pywrapper.py.in',
+    SUBST_DICT=usdt_probe_test_dict,
+)
+env.Depends(usdt_probe_test_wrapper, [usdt_probe_test_cpp, usdt_probe_test_py])
+env.AddPostAction(usdt_probe_test_wrapper[0], Chmod(usdt_probe_test_wrapper[0], 'oug+x'))
+
+env.RegisterUnitTest(usdt_probe_test_wrapper[0])
