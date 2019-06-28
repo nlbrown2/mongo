@@ -43,6 +43,13 @@
 
 #define CSTR_(str) const_cast<char *>(str.c_str())
 
+// TODO: as class
+void test(int fd_wr, const std::string &json) {
+    size_t bytesWritten = write(fd_wr, CSTR_(json), json.size());
+    ASSERT(bytesWritten == json.size());
+    std::cout << "JSON written:" << std::endl << json << std::endl;
+}
+
 int main(int argc, char **argv) {
     ASSERT_EQ(argc, 3);
 
@@ -61,7 +68,8 @@ int main(int argc, char **argv) {
     size_t bytesWritten = write(fd_wr, CSTR_(json), json.size());
     ASSERT(bytesWritten == json.size());
 
-    std::cout << "JSON written:" << std::endl << json << std::endl;
+    test(fd_wr, "{}");
+    test(fd_wr, "fun");
 
     // generate probes here
     return 0;

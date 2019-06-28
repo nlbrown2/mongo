@@ -11,4 +11,4 @@ if (len(sys.argv) < 3):
 rd = sys.argv[1]
 wr = sys.argv[2]
 
-print("{} + {}".format(rd, wr))
+os.write(int(wr), '>')
