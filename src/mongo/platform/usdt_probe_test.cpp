@@ -27,102 +27,42 @@
  *    it in the license file.
  */
 
-#include "usdt_probe_test.h"
+//#include "usdt_probe_test.h"
 
 #include <fcntl.h>
+#include <iostream>
 #include <sys/sdt.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
-// TODO: delete me
-#include <iostream>
-
 #include "mongo/base/parse_number.h"
+#include "mongo/unittest/unittest.h"
+#include "mongo/util/assert_util.h"
 
-namespace mongo {
-
-// I HATE THIS
 #define CSTR_(str) const_cast<char *>(str.c_str())
-
-void USDTProbeTest::prepare(const std::string &fifoName, const std::string &json) {
-    #if 0
-    _fifoName = CSTR_(fifoName);
-
-    int status = mkfifo(_fifoName, S_IRUSR | S_IWUSR);
-    if (status != 0 && errno != EEXIST) {
-        std::cerr << "mkfifo failed with errno: " << status << std::endl;
-        exit(EXIT_FAILURE); // TODO not this
-    } // else
-
-    std::cout << "Fifo made: " << _fifoName << std::endl;
-    int fd = open(_fifoName, O_RDWR);
-    std::cout << "Forking..." << std::endl;
-    #if 0
-    int child = fork();
-
-    if (child == 0) { // I am the child
-        char* pyFile = CSTR_(kPythonFile);
-        char* args[] = {pyFile, _fifoName, NULL};
-        std::cout << "Child forked, running: " << kPythonFile << std::endl;
-        execv(pyFile, args);
-
-        std::cerr << "You should not be here :(" << errno << std::endl;
-        exit(EXIT_FAILURE); // TODO not this
-    } // I am the parent
-
-    // now read one character from fifo, wait for my child to write
-    char ack;
-    fd = open(_fifoName, O_RDWR);
-    int bytesRead = read(fd, &ack, 1);
-    if (bytesRead != 1 || ack != '>') {
-        std::cout << "Handshake failed." << std::endl;
-    } else {
-        std::cout << "Handshake succeeded!" << std::endl;
-    }
-    #endif
-    close(fd);
-
-    // write JSON through pipe to child
-    fd = open(_fifoName, O_RDWR);
-    int len = json.length() + 1;
-    int bytesWritten = write(fd, json.c_str(), len);
-    if (bytesWritten != len) {
-        std::cerr << "You should not be here :(" << std::endl;
-        exit(EXIT_FAILURE); // TODO not this
-    }
-    
-    close(fd);
-    #endif
-}
-
-void USDTProbeTest::tearDown() {
-    // TODO signal death?
-    #if 0
-    int status;
-    std::cout << "Parent awaiting child's exit." << std::endl;
-    waitpid(-1, &status, 0);
-    if (status != 0) {
-        std::cout << "waitpid failed with errno: " << status << std::endl;
-    }
-
-    // clean up FIFO
-    remove(_fifoName);
-    #endif
-}
-}  // namespace mongo
 
 int main(int argc, char **argv) {
     ASSERT_EQ(argc, 3);
 
     int fd_rd, fd_wr;
-    mongo::NumberParser parse;
-    Status s = NumberParser{}(argv[1], &fd_rd);
-    if (!s.isOK()) throw(s);
-    s = NumberParser{}(argv[2], &fd_wr);
-    if (!s.isOK()) throw(s);
+    uassertStatusOK(mongo::NumberParser{}(argv[1], &fd_rd));
+    uassertStatusOK(mongo::NumberParser{}(argv[2], &fd_wr));
     
+    // handshake with python script
+    char ack;
+    size_t bytesRead = read(fd_rd, &ack, 1);
+    ASSERT(bytesRead == 1 && ack == '>');
 
+    std::cout << "Hand shook!" << std::endl; 
+
+    std::string json = "{}";
+    size_t bytesWritten = write(fd_wr, CSTR_(json), json.size());
+    ASSERT(bytesWritten == json.size());
+
+    std::cout << "JSON written:" << std::endl << json << std::endl;
+
+    // generate probes here
     return 0;
 }
