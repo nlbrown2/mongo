@@ -31,7 +31,11 @@ usdt_probe_test_cpp = env.Program(
     target='usdt_probe_test',
     source=[
         'usdt_probe_test.cpp',
-    ]
+    ],
+    LIBDEPS=[
+        '$BUILD_DIR/mongo/base',
+        '$BUILD_DIR/mongo/unittest/unittest'
+    ],
 )
 
 usdt_probe_test_dict = {
