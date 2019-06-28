@@ -27,64 +27,21 @@
  *    it in the license file.
  */
 
-#include "usdt_probe_test.h"
-
-#include <fcntl.h>
-#include <iostream>
-#include <sstream>
-#include <sys/sdt.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
-
-#include "usdt.h"
-#include "mongo/base/parse_number.h"
-#include "mongo/unittest/unittest.h"
-#include "mongo/util/assert_util.h"
+#include <functional>
+#include <string>
 
 namespace mongo {
 
-// handshake with python script
-void USDTProbeTest::setUp() {
-    char ack;
-    size_t bytesRead = read(_fdRd, &ack, 1);
-    ASSERT(bytesRead == 1 && ack == '>');
-    std::cout << "Hand shook!" << std::endl;
-}
+class USDTProbeTest {
+    int _fdRd;
+    int _fdWr;
+    bool _isSetUp;
 
-void USDTProbeTest::runTest(const std::string &json, const std::function<void()> &toTest) {
-    std::stringstream ss;
-    ss << json.size() << std::endl;
-    std::string sz = ss.str();
+public:
+    USDTProbeTest(int fdRd, int fdWr) : _fdRd(fdRd), _fdWr(fdWr), _isSetUp(false) {}
 
-    size_t bytesWritten = write(_fdWr, sz.c_str(), sz.size());
-    ASSERT(bytesWritten == sz.size());
-    bytesWritten = write(_fdWr, json.c_str(), json.size());
-    ASSERT(bytesWritten == json.size());
-    
-    std::cout << "JSON written:" << std::endl << json << std::endl; 
-}
+    void setUp();
+    void runTest(const std::string &json, const std::function<void()> &toTest);
+};
 
 }  // namespace mongo
-
-int main(int argc, char **argv) {
-    ASSERT_EQ(argc, 3);
-
-    int fdRd, fdWr;
-    uassertStatusOK(mongo::NumberParser{}(argv[1], &fdRd));
-    uassertStatusOK(mongo::NumberParser{}(argv[2], &fdWr));
-
-    mongo::USDTProbeTest tester(fdRd, fdWr);
-    tester.setUp();
-    
-    tester.runTest("{}", []() -> void {
-        std::cout << "No probes!" << std::endl;        
-    });
-
-    tester.runTest("{ probes: [probe1] }", []() -> void {
-        MONGO_USDT(probe1);
-    });
- 
-    return 0;
-}
