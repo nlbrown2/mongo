@@ -23,14 +23,14 @@ env.CppUnitTest(
 )
 
 usdt_probe_test_py = env.InstallAs(
-    'pyboi',
-    source=['pyboi.py'],
+    'usdt_probe_tester.py',
+    source=['usdt/usdt_probe_tester.py'],
 )
 
 usdt_probe_test_cpp = env.Program(
-    target='usdt_probe_test',
+    target='usdt/usdt_probe_test',
     source=[
-        'usdt_probe_test.cpp',
+        'usdt/usdt_probe_test.cpp',
     ],
     LIBDEPS=[
         '$BUILD_DIR/mongo/base',
@@ -45,7 +45,7 @@ usdt_probe_test_dict = {
 }
 
 usdt_probe_test_wrapper = env.Substfile(
-    'pywrapper.py.in',
+    'usdt/pywrapper.py.in',
     SUBST_DICT=usdt_probe_test_dict,
 )
 env.Depends(usdt_probe_test_wrapper, [usdt_probe_test_cpp, usdt_probe_test_py])

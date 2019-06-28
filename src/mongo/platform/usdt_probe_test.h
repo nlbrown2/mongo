@@ -29,7 +29,7 @@
 
 // TODO: conditional compilation?
 
-#include "usdt.h"
+#include "mongo/platform/usdt.h"
 
 #include <string>
 
