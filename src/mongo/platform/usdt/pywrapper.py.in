@@ -1,0 +1,32 @@
+#!/usr/bin/python3
+
+import os
+import subprocess
+import sys
+
+cpp_rd, py_wr = os.pipe()
+py_rd, cpp_wr = os.pipe()
+
+print("cpp {} {}".format(cpp_rd, cpp_wr))
+print("py {} {}".format(py_rd, py_wr))
+
+rp = os.path.realpath(__file__)
+dn = os.path.dirname(rp)
+
+exec_cpp_name = os.path.join(dn, '@usdt_probe_test_cpp@')
+print("Running: {}".format(exec_cpp_name))
+cpp_pr = subprocess.Popen(args=[exec_cpp_name, str(cpp_rd), str(cpp_wr)], executable=exec_cpp_name, close_fds=False)
+
+exec_py_name = os.path.join(dn, '@usdt_probe_test_py@')
+print("Running: {}".format(exec_py_name))
+py_pr = subprocess.Popen(args=[exec_py_name, str(py_rd), str(py_wr), str(cpp_pr.pid)], executable=exec_py_name, close_fds=False)
+
+cpp_pr.wait()
+py_pr.wait()
+
+os.close(cpp_wr)
+os.close(cpp_rd)
+os.close(py_wr)
+os.close(py_rd)
+
+print("Donezo")

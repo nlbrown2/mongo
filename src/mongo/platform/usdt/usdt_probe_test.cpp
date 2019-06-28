@@ -38,8 +38,8 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include "usdt.h"
 #include "mongo/base/parse_number.h"
+#include "mongo/platform/usdt.h"
 #include "mongo/unittest/unittest.h"
 #include "mongo/util/assert_util.h"
 
@@ -48,12 +48,16 @@ namespace mongo {
 // handshake with python script
 void USDTProbeTest::setUp() {
     char ack;
+    
     size_t bytesRead = read(_fdRd, &ack, 1);
+    std::cout << "ERROR: " << errno << std::endl;
     ASSERT(bytesRead == 1 && ack == '>');
     std::cout << "Hand shook!" << std::endl;
+    _isSetUp = true;
 }
 
 void USDTProbeTest::runTest(const std::string &json, const std::function<void()> &toTest) {
+    if (!_isSetUp) setUp();
     std::stringstream ss;
     ss << json.size() << std::endl;
     std::string sz = ss.str();
@@ -75,6 +79,8 @@ int main(int argc, char **argv) {
     uassertStatusOK(mongo::NumberParser{}(argv[1], &fdRd));
     uassertStatusOK(mongo::NumberParser{}(argv[2], &fdWr));
 
+    std::cout << fdRd << "/" << fdWr << std::endl;
+
     mongo::USDTProbeTest tester(fdRd, fdWr);
     tester.setUp();
     
@@ -85,6 +91,6 @@ int main(int argc, char **argv) {
     tester.runTest("{ probes: [probe1] }", []() -> void {
         MONGO_USDT(probe1);
     });
- 
+
     return 0;
 }
