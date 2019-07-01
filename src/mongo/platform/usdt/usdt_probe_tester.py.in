@@ -201,6 +201,8 @@ def main():
                     print('{} failed when it was hit on the {} time for arg {}'.format(failure[0], failure[1], failure[2]))
                 else:
                     print('{} failed when it was hit on the {} time'.format(failure[0], failure[1]))
+            # tell unittest driver that we are ready to get the current JSON spec
+            writer.write(b'q')
             sys.exit(1)
 
         print("SUCCEEDED")
