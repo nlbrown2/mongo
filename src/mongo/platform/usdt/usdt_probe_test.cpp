@@ -49,7 +49,6 @@ USDTProbeTest::~USDTProbeTest() {
     setUp();
     size_t bytesWritten = write(_fdWr, "0\n", 2);
     ASSERT(bytesWritten == 2);
-    std::cout << "Hand unshook." << std::endl;
 }
 
 // handshake with python script
@@ -57,7 +56,6 @@ void USDTProbeTest::setUp() {
     char ack;
     size_t bytesRead = read(_fdRd, &ack, 1);
     ASSERT(bytesRead == 1 && ack == '>');
-    std::cout << "Hand shook!" << std::endl;
 }
 
 void USDTProbeTest::runTest(const std::string &json, const std::function<void()> &toTest) {
@@ -72,8 +70,6 @@ void USDTProbeTest::runTest(const std::string &json, const std::function<void()>
     ASSERT(bytesWritten == sz.size());
     bytesWritten = write(_fdWr, json.c_str(), json.size());
     ASSERT(bytesWritten == json.size());
-    
-    std::cout << "JSON written:" << std::endl << json << std::endl; 
 
     // run actual test 
     setUp();
