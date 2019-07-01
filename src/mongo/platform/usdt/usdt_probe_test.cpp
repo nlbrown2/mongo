@@ -63,6 +63,7 @@ void USDTProbeTest::setUp() {
 void USDTProbeTest::runTest(const std::string &json, const std::function<void()> &toTest) {
     setUp();
 
+    // tell python what to expect
     std::stringstream ss;
     ss << json.size() << std::endl;
     std::string sz = ss.str();
@@ -73,6 +74,10 @@ void USDTProbeTest::runTest(const std::string &json, const std::function<void()>
     ASSERT(bytesWritten == json.size());
     
     std::cout << "JSON written:" << std::endl << json << std::endl; 
+
+    // run actual test 
+    setUp();
+    toTest();
 }
 
 }  // namespace mongo
@@ -90,11 +95,11 @@ int main(int argc, char **argv) {
         std::cout << "No probes!" << std::endl;        
     });
 
-    tester.runTest("{ \"probes\": [ {\"name\": probe1, \"hits\": 1, \"args\": [] } ] }", []() -> void {
+    tester.runTest("{ \"probes\": [ {\"name\": \"probe1\", \"hits\": 1, \"args\": [] } ] }", []() -> void {
         MONGO_USDT(probe1);
     });
 
-    tester.runTest("{ \"probes\": [ {\"name\": probe2, \"hits\": 1, \"args\": [ { \"type\": \"int\", \"value\": 42} ] } ] }", []() -> void {
+    tester.runTest("{ \"probes\": [ {\"name\": \"probe2\", \"hits\": 1, \"args\": [ { \"type\": \"int\", \"value\": 42} ] } ] }", []() -> void {
         MONGO_USDT(probe2, 42);
     });
 
