@@ -59,7 +59,7 @@ def validate_json(json_obj, writer):
         sys.exit(1)
 
 def load_json(reader, writer):
-    """reads json text of the specified size from a named pipe with name pipe_name and performs validation"""
+    """reads json text of the specified size from a named pipe with name writer and performs validation"""
     # first reads an integer that specifies the size of the JSON coming over the pipe
     line = str(reader.readline(), 'utf-8').strip()
     json_size = int(line)
@@ -72,7 +72,7 @@ def load_json(reader, writer):
 
     # parse the json
     json_obj = json.loads(json_text)
-    validate_json(json_obj, pipe_name)
+    validate_json(json_obj, writer)
     return json_obj
 
 TESTS_FAILED = [] # keep track of which tests have failed
@@ -156,9 +156,11 @@ def main():
     read_fd = int(sys.argv[1])
     write_fd = int(sys.argv[2])
     pid = int(sys.argv[3])
-    print("{} {} {}".format(read_fd, write_fd, pid))
     writer = os.fdopen(write_fd, "wb", 0)
     reader = os.fdopen(read_fd, "rb", 0)
+
+    # tell unittest driver that we are ready
+    writer.write(b'>')
 
     json_obj = load_json(reader, writer)
     probes = json_obj["probes"]
@@ -172,9 +174,6 @@ def main():
     print(bpf_text)
     probe_hit_counts = {probe.name : 0 for probe in probes}
     bpf_obj = attach_bpf(bpf_text, probes, pid, probe_hit_counts)
-
-    # tell unittest driver that we are ready
-    writer.write(b'>')
 
     while expecting_more_probe_hits(probes, probe_hit_counts):
         bpf_obj.perf_buffer_poll() # failing tests will eventually time out

@@ -45,12 +45,13 @@
 
 namespace mongo {
 
+USDTProbeTest::~USDTProbeTest() {
+}
+
 // handshake with python script
 void USDTProbeTest::setUp() {
     char ack;
-    
     size_t bytesRead = read(_fdRd, &ack, 1);
-    std::cout << "ERROR: " << errno << std::endl;
     ASSERT(bytesRead == 1 && ack == '>');
     std::cout << "Hand shook!" << std::endl;
     _isSetUp = true;
@@ -58,6 +59,7 @@ void USDTProbeTest::setUp() {
 
 void USDTProbeTest::runTest(const std::string &json, const std::function<void()> &toTest) {
     if (!_isSetUp) setUp();
+
     std::stringstream ss;
     ss << json.size() << std::endl;
     std::string sz = ss.str();
@@ -79,17 +81,18 @@ int main(int argc, char **argv) {
     uassertStatusOK(mongo::NumberParser{}(argv[1], &fdRd));
     uassertStatusOK(mongo::NumberParser{}(argv[2], &fdWr));
 
-    std::cout << fdRd << "/" << fdWr << std::endl;
-
     mongo::USDTProbeTest tester(fdRd, fdWr);
-    tester.setUp();
-    
-    tester.runTest("{}", []() -> void {
+ 
+    tester.runTest("{ \"probes\": [] }", []() -> void {
         std::cout << "No probes!" << std::endl;        
     });
 
-    tester.runTest("{ probes: [probe1] }", []() -> void {
+    tester.runTest("{ \"probes\": [ {\"name\": probe1, \"hits\": 1, \"args\": [] } ] }", []() -> void {
         MONGO_USDT(probe1);
+    });
+
+    tester.runTest("{ \"probes\": [ {\"name\": probe2, \"hits\": 1, \"args\": [ { \"type\": \"int\", \"value\": 42} ] } ] }", []() -> void {
+        MONGO_USDT(probe2, 42);
     });
 
     return 0;

@@ -7,8 +7,10 @@ import sys
 cpp_rd, py_wr = os.pipe()
 py_rd, cpp_wr = os.pipe()
 
-print("cpp {} {}".format(cpp_rd, cpp_wr))
-print("py {} {}".format(py_rd, py_wr))
+os.set_inheritable(cpp_rd, True)
+os.set_inheritable(cpp_wr, True)
+os.set_inheritable(py_rd, True)
+os.set_inheritable(py_wr, True)
 
 rp = os.path.realpath(__file__)
 dn = os.path.dirname(rp)

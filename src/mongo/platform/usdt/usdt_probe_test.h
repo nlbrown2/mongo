@@ -39,6 +39,7 @@ class USDTProbeTest {
 
 public:
     USDTProbeTest(int fdRd, int fdWr) : _fdRd(fdRd), _fdWr(fdWr), _isSetUp(false) {}
+    ~USDTProbeTest();
 
     void setUp();
     void runTest(const std::string &json, const std::function<void()> &toTest);
