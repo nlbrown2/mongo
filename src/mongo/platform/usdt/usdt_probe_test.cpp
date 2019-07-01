@@ -59,7 +59,7 @@ void USDTProbeTest::setUp() {
     std::cout << "Hand shook!" << std::endl;
 }
 
-void USDTProbeTest::runTest(const std::string &json, const std::function<void()> &toTest) {
+void USDTProbeTest::runTest(const std::string &json, const std::function<void()> &toTest, const std::function<bool(const std::string&)>& onResult) {
     setUp();
 
     // tell python what to expect
@@ -77,6 +77,30 @@ void USDTProbeTest::runTest(const std::string &json, const std::function<void()>
     // run actual test 
     setUp();
     toTest();
+    std::cout << "reading size?" << std::endl;
+    char buffer[1024];
+    std::string number;
+    for(bool seenNewline = false; !seenNewline;) {
+        int bytesRead = read(_fdRd, buffer, sizeof(buffer));
+        for(int i = 0; i < bytesRead; ++i) {
+            if(buffer[i] == '\n')
+                seenNewline = true;
+        }
+        number.append(buffer, bytesRead);
+    }
+    long long size;
+    ASSERT_OK(NumberParser::strToAny()(number.c_str(), &size));
+    std::cout << "size: " << size << std::endl;
+    std::string values;
+    for(int bytesRead = 0; size; size -= bytesRead) {
+        bytesRead = read(_fdRd, &buffer, sizeof(buffer));
+        values.append(buffer, bytesRead);
+    }
+    if(onResult(values)) {
+        std::cout << "PASSED" << std::endl;
+    } else {
+        std::cout << "FAILED" << std::endl;
+    }
 }
 
 }  // namespace mongo
@@ -89,18 +113,65 @@ int main(int argc, char **argv) {
     uassertStatusOK(mongo::NumberParser{}(argv[2], &fdWr));
 
     mongo::USDTProbeTest tester(fdRd, fdWr);
+
+    tester.runTest(R"(
+                {"probes": [{
+                    "name": "new_json",
+                    "hits": 1,
+                    "args": [
+                        {   "type": "struct",
+                            "values": [
+                        {
+                            "type": "int"
+                        },{
+                            "type": "str",
+                            "length": 20
+                        },{
+                            "type": "struct",
+                            "values": [
+                                {
+                                    "type": "int"
+                                },{
+                                    "type": "struct",
+                                    "values": [
+                                        {
+                                            "type": "int"
+                                        }
+                                    ]
+                                }
+                            ] 
+                        }]}
+                    ] 
+                }]})", []() -> void {
+            struct {
+                int val = 42;
+                char str[20] = "Hello, world!";
+                struct {
+                    int num = 43;
+                    struct{
+                        int hidden = 44;
+                    } double_nest;
+                } nested;
+            } Struct;
+            std::cout << "pre probe" << std::endl;
+            MONGO_USDT(new_json, &Struct);
+            std::cout << "post probe" << std::endl;
+    }, [](const std::string& from_pipe) {
+        std::cout << "Got: " << from_pipe << std::endl;
+        return false;
+    });
  
-    tester.runTest("{ \"probes\": [] }", []() -> void {
-        std::cout << "No probes!" << std::endl;        
-    });
+    /* tester.runTest("{ \"probes\": [] }", []() -> void { */
+    /*     std::cout << "No probes!" << std::endl; */        
+    /* }); */
 
-    tester.runTest("{ \"probes\": [ {\"name\": \"probe1\", \"hits\": 1, \"args\": [] } ] }", []() -> void {
-        MONGO_USDT(probe1);
-    });
+    /* tester.runTest("{ \"probes\": [ {\"name\": \"probe1\", \"hits\": 1, \"args\": [] } ] }", []() -> void { */
+    /*     MONGO_USDT(probe1); */
+    /* }); */
 
-    tester.runTest("{ \"probes\": [ {\"name\": \"probe2\", \"hits\": 1, \"args\": [ { \"type\": \"int\", \"value\": 42} ] } ] }", []() -> void {
-        MONGO_USDT(probe2, 42);
-    });
+    /* tester.runTest("{ \"probes\": [ {\"name\": \"probe2\", \"hits\": 1, \"args\": [ { \"type\": \"int\", \"value\": 42} ] } ] }", []() -> void { */
+    /*     MONGO_USDT(probe2, 42); */
+    /* }); */
 
     return 0;
 }

@@ -22,13 +22,9 @@ class Arg:
         self.output_arg_name = 'arg_{}_{}'.format(self.depth, self.index)
         if self.type == STRING_TYPE:
             self.length = arg_dict["length"]
-        if arg_dict.get("value"):
-            self.values = [arg_dict["value"]] * num_hits
-        else:
-            self.values = arg_dict["values"]
 
         if self.type == 'struct':
-            self.values = [Arg(val, num_hits, probe_name, child_index, depth = depth + 1) for child_index, val in enumerate(self.values)]
+            self.values = [Arg(val, num_hits, probe_name, child_index, depth = depth + 1) for child_index, val in enumerate(arg_dict["values"])]
 
     def __str__(self):
         return self.type + ' ' + self.output_arg_name

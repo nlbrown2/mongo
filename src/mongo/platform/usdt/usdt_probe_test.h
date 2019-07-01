@@ -42,7 +42,7 @@ public:
     USDTProbeTest(int fdRd, int fdWr) : _fdRd(fdRd), _fdWr(fdWr) {}
     ~USDTProbeTest();
 
-    void runTest(const std::string &json, const std::function<void()> &toTest);
+    void runTest(const std::string &json, const std::function<void()> &toTest, const std::function<bool (const std::string&)>& passed);
 };
 
 }  // namespace mongo

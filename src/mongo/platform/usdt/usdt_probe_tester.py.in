@@ -10,22 +10,24 @@ from generator import Generator, Probe
 from util import STRING_TYPE, PROBE_NAME_KEY, PROBE_ARGS_KEY, ARG_TYPE_KEY
 
 
-def _validate_json_args(args_obj, values_len):
+def _validate_json_args(args_obj):
     accepted_types = (STRING_TYPE, 'int', 'long', 'struct')
     for arg in args_obj:
         if arg[ARG_TYPE_KEY] not in accepted_types:
             raise JSONException('argument for probe {} has unsupported type {}'.format(probe[PROBE_NAME_KEY], arg[ARG_TYPE_KEY]))
         if arg[ARG_TYPE_KEY] == STRING_TYPE and (not arg.get("length") or not isinstance(arg["length"], int)):
             raise JSONException('string args must specify an int literal for length')
-        val = arg.get("value")
-        if not val:
-            if not isinstance(arg["values"], list):
-                raise JSONException('values must be specified as an array. To specify a constant, use the key "value"')
-            if arg[ARG_TYPE_KEY] == 'struct':
-                _validate_json_args(arg["values"], values_len)
-            elif len(arg["values"]) != values_len:
-                raise JSONException('values must specify a value for each hit. Expected {} values, saw {}'
-                        .format(values_len, len(arg["values"])))
+        if arg.get(ARG_TYPE_KEY) != 'struct' and (arg.get("value") or arg.get("values")):
+            raise JSONException("Deprecated use of value[s]")
+        # val = arg.get("value")
+        # if not val:
+        #     if not isinstance(arg["values"], list):
+        #         raise JSONException('values must be specified as an array. To specify a constant, use the key "value"')
+        #     if arg[ARG_TYPE_KEY] == 'struct':
+        #         _validate_json_args(arg["values"], values_len)
+        #     elif len(arg["values"]) != values_len:
+        #         raise JSONException('values must specify a value for each hit. Expected {} values, saw {}'
+        #                 .format(values_len, len(arg["values"])))
 
 def validate_json(json_obj, writer):
     """ given a JSON object (dict), ensure it is a valid configuration """
@@ -52,7 +54,7 @@ def validate_json(json_obj, writer):
                 raise JSONException('probe is supposed to have an array value for key {}'.format(PROBE_ARGS_KEY))
             if not isinstance(probe["hits"], int):
                 raise JSONException('probe is supposed to have an integer literal for key {}'.format("hits"))
-            _validate_json_args(probe[PROBE_ARGS_KEY], probe["hits"])
+            _validate_json_args(probe[PROBE_ARGS_KEY])
     except (JSONException, KeyError) as ex:
         print("error parsing JSON configuration: ", str(ex))
         writer.write(b'j' if isinstance(ex, JSONException) else b'k')
@@ -78,31 +80,28 @@ def load_json(reader, writer):
     return json_obj
 
 TESTS_FAILED = [] # keep track of which tests have failed
-def callback_gen(bpf_obj, probe, probe_hit_counts):
+def callback_gen(bpf_obj, probe, probe_hit_counts, output_arr):
     """ returns a function that can handle and validate the args passed to probe probe_name. Updates probe_hit_counts """
     def process_callback(cpu, data, size):
         """ on every event, this callback will trigger with new data. It will iterate over the specified args, validating each one """
         del cpu, size #these are unused
         passes = True
+        to_send = ''
         for index, arg in enumerate(probe.args):
             try:
-                validate_arg(bpf_obj[probe.name].event(data), arg, probe_hit_counts[probe.name])
-            except (FailedCompException, IndexError) as error:
+                to_send += stringify_arg(bpf_obj[probe.name].event(data), arg)
+            except IndexError as error:
                 passes = False
-                if isinstance(error, FailedCompException):
-                    print("Error validating args for probe: " + probe.name, file=sys.stderr)
-                    print(str(error))
-                    TESTS_FAILED.append((probe.name, probe_hit_counts[probe.name], index))
-                else:
-                    print("Error! probe {} hit too many times".format(probe.name))
-                    TESTS_FAILED.append((probe.name, probe_hit_counts[probe.name])) # not arg specific, so drop index
-                    break # no need to "fail" for every arg
+                print("Error! probe {} hit too many times".format(probe.name))
+                TESTS_FAILED.append((probe.name, probe_hit_counts[probe.name])) # not arg specific, so drop index
+                break # no need to "fail" for every arg
+        output_arr.append(to_send)
         print(probe.name, ' iteration: {}...{}'.format(probe_hit_counts[probe.name], 'PASS' if passes else 'FAILED'))
         probe_hit_counts[probe.name] += 1
     return process_callback
 
 # create and enable USDT objects
-def attach_bpf(bpf_text, probes, pid, probe_hit_counts):
+def attach_bpf(bpf_text, probes, pid, probe_hit_counts, output_arrays):
     """ creates usdt_probes and attaches them to a BPF object.
     Sets up BPF object callbacks. Returns the initalized BPF object"""
     usdt_probes = [USDT(pid=pid) for p in probes]
@@ -111,35 +110,24 @@ def attach_bpf(bpf_text, probes, pid, probe_hit_counts):
 
     bpf = BPF(text=bpf_text, usdt_contexts=usdt_probes)
     for probe in probes:
-        bpf[probe.name].open_perf_buffer(callback_gen(bpf, probe, probe_hit_counts))
+        bpf[probe.name].open_perf_buffer(callback_gen(bpf, probe, probe_hit_counts, output_arrays[probe.name]))
 
     return bpf
 
-class FailedCompException(Exception):
-    """Custom exception class for handling failed comparisons"""
-    def __init__(self, expected, actual):
-        Exception.__init__(self, str(expected) + ' != ' + str(actual))
-        self.expected = expected
-        self.actual = actual
-
-    def __str__(self):
-        base = Exception.__str__(self)
-        base += '. Expected: {}. Got {}'.format(self.expected, self.actual)
-        return base
-
-def validate_arg(event, arg, hit_num):
-    """given which channel to get an event from, this function will ensure
-    the specified arg (arg_index and arg_type) hold the correct value"""
+def stringify_arg(event, arg):
+    """returns the value for the provided argument within the event as a stringified representation"""
+    res = ''
     if arg.type == 'struct':
         for arg in arg.values:
-            validate_arg(event, arg, hit_num)
-        return
-    expected_val = arg.values[hit_num]
-    actual = getattr(event, arg.output_arg_name)
-    if arg.type == STRING_TYPE:
-        expected_val = bytes(expected_val, 'utf-8') # strings are passed as bytestrings
-    if str(actual) != str(expected_val):
-        raise FailedCompException(expected_val, actual)
+            res += stringify_arg(event, arg)
+    else:
+        actual = getattr(event, arg.output_arg_name)
+        if arg.type == STRING_TYPE:
+            res += '"' + str(actual, 'utf-8') + '" '
+        else:
+            res += str(actual) + ' '
+    print(arg, res)
+    return res
 
 def expecting_more_probe_hits(probes, probe_hit_counts):
     """ determines if the testing program expects more probes to be hit or not """
@@ -162,10 +150,7 @@ def main():
     reader = os.fdopen(read_fd, "rb", 0)
 
     while True:
-        # tell unittest driver that we are ready to get the current JSON spec
         writer.write(b'>')
-
-        
         json_obj = load_json(reader, writer)
         if not json_obj:
             print("All tests have run")
@@ -180,7 +165,8 @@ def main():
         print("BPF program: ")
         print(bpf_text)
         probe_hit_counts = {probe.name : 0 for probe in probes}
-        bpf_obj = attach_bpf(bpf_text, probes, pid, probe_hit_counts)
+        probe_values = {probe.name : [] for probe in probes}
+        bpf_obj = attach_bpf(bpf_text, probes, pid, probe_hit_counts, probe_values)
 
         # tell unittest driver that we have finished attaching our probes
         writer.write(b'>')
@@ -192,19 +178,22 @@ def main():
         # the timeout is in miliseconds (same as syscall poll)
         bpf_obj.perf_buffer_poll(1000)
 
+        total_size = 0
+        for _, arr in probe_values.items():
+            for string in arr:
+                total_size += len(string)
+
+        writer.write(bytes(str(total_size), 'utf-8')) # write the size as a utf-8 string
+        print("printing: ", total_size)
+        for name, arr in probe_values.items():
+            print(name)
+            writer.write(bytes(name, 'utf-8'))
+            writer.write(b'\n')
+            for val in arr:
+                print(val)
+                writer.write(bytes(val, 'utf-8'))
+
         print("\n\n\n==================SUMMARY=================")
-
-        if TESTS_FAILED:
-            print("FAILED!")
-            for failure in TESTS_FAILED:
-                if len(failure) == 3:
-                    print('{} failed when it was hit on the {} time for arg {}'.format(failure[0], failure[1], failure[2]))
-                else:
-                    print('{} failed when it was hit on the {} time'.format(failure[0], failure[1]))
-            # tell unittest driver that we are ready to get the current JSON spec
-            writer.write(b'q')
-            sys.exit(1)
-
         print("SUCCEEDED")
 
 if __name__ == '__main__':
