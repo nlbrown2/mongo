@@ -35,13 +35,13 @@ namespace mongo {
 class USDTProbeTest {
     int _fdRd;
     int _fdWr;
-    bool _isSetUp;
-
-public:
-    USDTProbeTest(int fdRd, int fdWr) : _fdRd(fdRd), _fdWr(fdWr), _isSetUp(false) {}
-    ~USDTProbeTest();
 
     void setUp();
+
+public:
+    USDTProbeTest(int fdRd, int fdWr) : _fdRd(fdRd), _fdWr(fdWr) {}
+    ~USDTProbeTest();
+
     void runTest(const std::string &json, const std::function<void()> &toTest);
 };
 

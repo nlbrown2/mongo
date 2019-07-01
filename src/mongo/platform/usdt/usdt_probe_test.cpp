@@ -46,6 +46,10 @@
 namespace mongo {
 
 USDTProbeTest::~USDTProbeTest() {
+    setUp();
+    size_t bytesWritten = write(_fdWr, "0\n", 2);
+    ASSERT(bytesWritten == 2);
+    std::cout << "Hand unshook." << std::endl;
 }
 
 // handshake with python script
@@ -54,11 +58,10 @@ void USDTProbeTest::setUp() {
     size_t bytesRead = read(_fdRd, &ack, 1);
     ASSERT(bytesRead == 1 && ack == '>');
     std::cout << "Hand shook!" << std::endl;
-    _isSetUp = true;
 }
 
 void USDTProbeTest::runTest(const std::string &json, const std::function<void()> &toTest) {
-    if (!_isSetUp) setUp();
+    setUp();
 
     std::stringstream ss;
     ss << json.size() << std::endl;
