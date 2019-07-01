@@ -63,6 +63,8 @@ def load_json(reader, writer):
     # first reads an integer that specifies the size of the JSON coming over the pipe
     line = str(reader.readline(), 'utf-8').strip()
     json_size = int(line)
+    if json_size is 0:
+        return None
     total_read = 0
     json_text = b''
     while total_read < json_size:
@@ -159,41 +161,49 @@ def main():
     writer = os.fdopen(write_fd, "wb", 0)
     reader = os.fdopen(read_fd, "rb", 0)
 
-    # tell unittest driver that we are ready
-    writer.write(b'>')
+    while True:
+        # tell unittest driver that we are ready to get the current JSON spec
+        writer.write(b'>')
 
-    json_obj = load_json(reader, writer)
-    probes = json_obj["probes"]
+        
+        json_obj = load_json(reader, writer)
+        if not json_obj:
+            print("All tests have run")
+            break
+        probes = json_obj["probes"]
 
-    gen = Generator()
-    probes = [Probe(probe) for probe in probes]
-    for probe in probes:
-        gen.add_probe(probe)
-    bpf_text = gen.finish()
-    print("BPF program: ")
-    print(bpf_text)
-    probe_hit_counts = {probe.name : 0 for probe in probes}
-    bpf_obj = attach_bpf(bpf_text, probes, pid, probe_hit_counts)
+        gen = Generator()
+        probes = [Probe(probe) for probe in probes]
+        for probe in probes:
+            gen.add_probe(probe)
+        bpf_text = gen.finish()
+        print("BPF program: ")
+        print(bpf_text)
+        probe_hit_counts = {probe.name : 0 for probe in probes}
+        bpf_obj = attach_bpf(bpf_text, probes, pid, probe_hit_counts)
 
-    while expecting_more_probe_hits(probes, probe_hit_counts):
-        bpf_obj.perf_buffer_poll() # failing tests will eventually time out
+        # tell unittest driver that we have finished attaching our probes
+        writer.write(b'>')
 
-    # test if the probes are going to be hit one more time
-    # the timeout is in miliseconds (same as syscall poll)
-    bpf_obj.perf_buffer_poll(1000)
+        while expecting_more_probe_hits(probes, probe_hit_counts):
+            bpf_obj.perf_buffer_poll() # failing tests will eventually time out
 
-    print("\n\n\n==================SUMMARY=================")
+        # test if the probes are going to be hit one more time
+        # the timeout is in miliseconds (same as syscall poll)
+        bpf_obj.perf_buffer_poll(1000)
 
-    if TESTS_FAILED:
-        print("FAILED!")
-        for failure in TESTS_FAILED:
-            if len(failure) == 3:
-                print('{} failed when it was hit on the {} time for arg {}'.format(failure[0], failure[1], failure[2]))
-            else:
-                print('{} failed when it was hit on the {} time'.format(failure[0], failure[1]))
-        sys.exit(1)
+        print("\n\n\n==================SUMMARY=================")
 
-    print("SUCCEEDED")
+        if TESTS_FAILED:
+            print("FAILED!")
+            for failure in TESTS_FAILED:
+                if len(failure) == 3:
+                    print('{} failed when it was hit on the {} time for arg {}'.format(failure[0], failure[1], failure[2]))
+                else:
+                    print('{} failed when it was hit on the {} time'.format(failure[0], failure[1]))
+            sys.exit(1)
+
+        print("SUCCEEDED")
 
 if __name__ == '__main__':
     main()
