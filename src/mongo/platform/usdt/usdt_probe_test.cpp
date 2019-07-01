@@ -86,7 +86,7 @@ int main(int argc, char **argv) {
     uassertStatusOK(mongo::NumberParser{}(argv[2], &fdWr));
 
     mongo::USDTProbeTest tester(fdRd, fdWr);
- 
+
     tester.runTest("{ \"probes\": [] }", []() -> void {
         std::cout << "No probes!" << std::endl;        
     });
@@ -97,6 +97,10 @@ int main(int argc, char **argv) {
 
     tester.runTest("{ \"probes\": [ {\"name\": \"probe2\", \"hits\": 1, \"args\": [ { \"type\": \"int\", \"value\": 42} ] } ] }", []() -> void {
         MONGO_USDT(probe2, 42);
+    });
+
+    tester.runTest("{ \"probes\": [ {\"name\": \"probe2\", \"hits\": 1, \"args\": [ { \"type\": \"int\", \"value\": 42} ] } ] }", []() -> void {
+        MONGO_USDT(probe2, 43);
     });
 
     return 0;
