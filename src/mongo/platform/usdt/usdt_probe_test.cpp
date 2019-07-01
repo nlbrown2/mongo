@@ -32,7 +32,6 @@
 #include <fcntl.h>
 #include <iostream>
 #include <sstream>
-#include <sys/sdt.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
