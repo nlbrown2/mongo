@@ -99,8 +99,26 @@ int main(int argc, char **argv) {
         MONGO_USDT(probe2, 42);
     });
 
-    tester.runTest("{ \"probes\": [ {\"name\": \"probe2\", \"hits\": 1, \"args\": [ { \"type\": \"int\", \"value\": 42} ] } ] }", []() -> void {
-        MONGO_USDT(probe2, 43);
+    tester.runTest("{ \"probes\": [ {\"name\": \"probe3\", \"hits\": 1, \"args\": [ { \"type\": \"str\", \"length\": 100, \"value\": \"Hello, world!\"} ] } ] }", []() -> void {
+        MONGO_USDT(probe3, "Hello, world!");
+    });
+
+    tester.runTest("{ \"probes\": [ {\"name\": \"probe4\",                                                      \
+                                     \"hits\": 1,                                                               \
+                                     \"args\": [                                                                \
+                                        { \"type\": \"struct\", \"values\": [                                   \
+                                            {\"type\": \"int\", \"value\": 42},                                 \
+                                            {\"type\": \"str\", \"length\": 100, \"value\": \"a thing\"         \
+                    }]} ] } ] }", []() -> void {
+        struct {
+            int i = 42;
+            const char str[8] = "a thing";
+        } aStruct;
+        MONGO_USDT(probe4, &aStruct);
+    });
+
+    tester.runTest("{ \"probes\": [ {\"name\": \"BAD\", \"hits\": 1, \"args\": [ { \"type\": \"int\", \"value\": 42} ] } ] }", []() -> void {
+        MONGO_USDT(BAD, 43);
     });
 
     return 0;
