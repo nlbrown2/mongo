@@ -60,16 +60,16 @@ public:
 class USDTProbe {
     USDTProbeArg _args[12]; 
     unsigned short _argc;
-    int _hits;
 
 public:
+    const int hits;
     const std::string name;
-    const std::function<bool (const std::string&)> onResult;
+    const std::function<bool (const std::string&, int)> onResult;
 
     USDTProbe(const std::string name,
               int hits,
-              const std::function<bool (const std::string&)> onResult)
-        : _argc(0), _hits(hits), name(name), onResult(onResult) {}
+              const std::function<bool (const std::string&, int)> onResult)
+        : _argc(0), hits(hits), name(name), onResult(onResult) {}
 
     USDTProbe& withArg(USDTProbeArg arg) {
         ASSERT_LT(_argc, 12);

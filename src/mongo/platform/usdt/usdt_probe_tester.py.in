@@ -95,6 +95,7 @@ def callback_gen(bpf_obj, probe, probe_hit_counts, output_arr):
                 print("Error! probe {} hit too many times".format(probe.name))
                 TESTS_FAILED.append((probe.name, probe_hit_counts[probe.name])) # not arg specific, so drop index
                 break # no need to "fail" for every arg
+        to_send += '\n'
         output_arr.append(to_send)
         print(probe.name, ' iteration: {}...{}'.format(probe_hit_counts[probe.name], 'PASS' if passes else 'FAILED'))
         probe_hit_counts[probe.name] += 1
@@ -185,7 +186,6 @@ def main():
             all_bytes += b'\n'
             for val in probe_values[probe.name]:
                 all_bytes += bytes(val, 'utf-8')
-            all_bytes += b'\n'
 
         writer.write(bytes(str(len(all_bytes)), 'utf-8'))
         writer.write(b'\n')
