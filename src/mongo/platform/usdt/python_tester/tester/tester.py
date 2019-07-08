@@ -1,15 +1,45 @@
-#!/usr/bin/python3
-""" This module can load a JSON configuration for testing eBPF probes and generate eBPF programs, attach them to the specified probes, and verify their output"""
+""" This module is responsible for coordinating with the c++ bridge to run all needed tests """
 
+# class Tester:
+#     """ communicates with a bridge to run multiple USDT tests """
+
+#     def __init__(self, bridge):
+#         """ set up ourselves to communicate over the bridge """
+#         self.bridge = bridge
+
+#     def run(self, bridge):
+#         """ reads a json spec from the bridge, attaches probes, and writes the captured values back to the C++ side """
+#         json = bridge.get_json()
+#         if not json:
+#             return None
+#         attached_probes = self.attach_probes(json)
+#         if not attached_probes:
+#             print("Could not attach probes! Error: {}".format(attached_probes.error_msg))
+#         bridge.signal_ready_to_test()
+#         self.test()
+#         bridge.send_results(self.probes, self.probe_values)
+#         return True
+
+#     def attach_probes(self, json_spec):
+#         probes = json_obj["probes"]
+
+#         gen = Generator()
+#         self.probes = [Probe(probe) for probe in probes]
+#         for probe in probes:
+#             gen.add_probe(probe)
+#         self.bpf_text = gen.finish()
+#         self.probe_hit_counts = {probe.name : 0 for probe in probes}
+#         self.probe_values = {probe.name : [] for probe in probes}
+#         self.bpf_obj = self.attach_bpf(bpf_text, probes, pid, probe_hit_counts, probe_values)
+#         return True
+
+#     def test(self):
+#         while self.expecting_more_probe_hits():
+#             self.bpf_obj.perf_buffer_poll() # wait for another probe to be hit
 import json
-import os
-import sys
-import traceback
 from bcc import BPF, USDT
-from generator import Generator, Probe
-from util import STRING_TYPE, PROBE_NAME_KEY, PROBE_ARGS_KEY, ARG_TYPE_KEY
-
-
+from .util import *
+from .generator import *
 def _validate_json_args(args_obj):
     accepted_types = (STRING_TYPE, 'int', 'long', 'struct')
     for arg in args_obj:
@@ -137,19 +167,7 @@ def expecting_more_probe_hits(probes, probe_hit_counts):
             return True
     return False
 
-def main():
-    #pylint: disable=missing-docstring
-    # parse command line args
-    if len(sys.argv) < 4:
-        print("Usage: " + sys.argv[0] + " <read fd> <write fd> <pid>")
-        exit(1)
-
-    read_fd = int(sys.argv[1])
-    write_fd = int(sys.argv[2])
-    pid = int(sys.argv[3])
-    writer = os.fdopen(write_fd, "wb", 0)
-    reader = os.fdopen(read_fd, "rb", 0)
-
+def run(reader, writer, pid):
     while True:
         writer.write(b'>')
         json_obj = load_json(reader, writer)

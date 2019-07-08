@@ -1,6 +1,5 @@
 """ module that can generate c-style eBPF programs given a list of probes to attach to and their arguments """
-import pdb
-from util import STRING_TYPE, PROBE_NAME_KEY, PROBE_ARGS_KEY, ARG_TYPE_KEY
+from .util import STRING_TYPE, PROBE_NAME_KEY, PROBE_ARGS_KEY, ARG_TYPE_KEY
 
 class Probe:
     def __init__(self, probe_dict):
