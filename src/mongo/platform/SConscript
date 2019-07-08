@@ -1,6 +1,7 @@
 # -*- mode: python -*-
 
 import sys
+import SCons
 
 Import("env")
 
@@ -22,21 +23,37 @@ env.CppUnitTest(
     ],
 )
 
-usdt_util_py = env.InstallAs(
-    'usdt/util.py',
-    source=['usdt/util.py.in'],
-)
+# usdt_util_py = env.InstallAs(
+#     'usdt/util.py',
+#     source=['usdt/python_tester/tester/util.py.in'],
+# )
 
-usdt_generator_py = env.InstallAs(
-    'usdt/generator.py',
-    source=['usdt/generator.py.in'],
-)
+# usdt_generator_py = env.InstallAs(
+#     'usdt/python_tester/generator.py',
+#     source=['usdt/python_tester/tester/generator.py.in'],
+# )
 
-usdt_probe_test_py = env.InstallAs(
-    'usdt/usdt_probe_tester.py',
-    source=['usdt/usdt_probe_tester.py.in'],
-)
-env.Depends(usdt_probe_test_py, [usdt_generator_py, usdt_util_py])
+
+python_testing_files = env.Glob('usdt/python_tester/*')
+python_testing_files = [ file for file in python_testing_files if file.get_path() != 'usdt/python_tester/tester' ]
+python_testing_files.extend(env.Glob('usdt/python_tester/tester/*'))
+
+def InstallFile(env, name, source = None, exclude = []):
+    if name in exclude:
+        return None
+    if not isinstance(source, SCons.Node.FS.Base):
+        source = env.Entry(name)
+    return env.InstallAs(
+        name,
+        source.srcnode().get_abspath()
+    )
+
+python_testing_targets = [ InstallFile(env, file.get_path(), source = file, exclude = [ 'usdt/python_tester/usdt_probe_tester.py' ]) for file in python_testing_files ]
+python_testing_targets = [ target for target in python_testing_targets if target is not None ]
+
+usdt_probe_test_py = InstallFile(env, 'usdt/python_tester/usdt_probe_tester.py')
+        
+env.Depends(usdt_probe_test_py, python_testing_targets)
 
 usdt_probe_test_cpp = env.Program(
     target='usdt/usdt_probe_test',
