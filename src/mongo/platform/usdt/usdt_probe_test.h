@@ -63,18 +63,32 @@ class USDTProbe {
     int _hits;
 
 public:
-    const std::string &name;
-    const std::function<bool (const std::string&)>& onResult;
+    const std::string name;
+    const std::function<bool (const std::string&)> onResult;
 
-    USDTProbe(const std::string &name,
+    USDTProbe(const std::string name,
               int hits,
-              const std::function<bool (const std::string&)>& onResult)
+              const std::function<bool (const std::string&)> onResult)
         : _argc(0), _hits(hits), name(name), onResult(onResult) {}
 
     USDTProbe& withArg(USDTProbeArg arg) {
         ASSERT_LT(_argc, 12);
         _args[_argc] = arg;
         _argc++;
+        return *this;
+    }
+
+    USDTProbe& withIntArg(int num = 1) {
+        for(int i=0; i<num; i++) {
+            withArg(USDTProbeArg(USDTProbeType::INT));
+        }
+        return *this;
+    }
+
+    USDTProbe& withStringArg(int num = 1) {
+        for(int i=0; i<num; i++) {
+            withArg(USDTProbeArg(USDTProbeType::INT));
+        }
         return *this;
     }
 

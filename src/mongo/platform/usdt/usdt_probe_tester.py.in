@@ -152,6 +152,7 @@ def main():
     while True:
         writer.write(b'>')
         json_obj = load_json(reader, writer)
+        print(json_obj)
         if not json_obj:
             print("All tests have run")
             break

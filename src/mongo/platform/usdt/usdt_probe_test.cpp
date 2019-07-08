@@ -106,7 +106,6 @@ std::string readLine(int fdRd, int maxLen = 1024) {
     int count = 0;
     char c;
     while(read(fdRd, &c, 1) && c != '\n' && count < maxLen) {
-        std::cout << "**" << c << std::endl;
         ss << c;
         count++;
     }
@@ -127,7 +126,6 @@ void USDTProbeTest::setUp() {
     ASSERT(bytesRead == 1 && ack == '>');
 }
 
-// ASSUMPTION: TODO @Nathan? does results guarantee probe order?
 void USDTProbeTest::runTest(const std::vector<USDTProbe> &probes,
                             const std::function<void()> &toTest) {
     setUp();
@@ -150,14 +148,10 @@ void USDTProbeTest::runTest(const std::vector<USDTProbe> &probes,
     std::string line;
     int size = 1024; // TODO verify this/ get from py
     for(auto probe : probes) {
-        std::cout << "READ RES OF " << probe.name << std::endl;
         line = readLine(_fdRd);
         ASSERT_EQ(line, probe.name);
        
-        //line = readLine(_fdRd);
-        //uassertStatusOK(mongo::NumberParser{}(line, &size));
         line = readLine(_fdRd, size); // get results
-        std::cout << line << "***" << std::endl;
 
         if(probe.onResult(line)) {
             std::cout << "PASSED" << std::endl;
@@ -165,33 +159,6 @@ void USDTProbeTest::runTest(const std::vector<USDTProbe> &probes,
             std::cout << "FAILED" << std::endl;
         }
     }
-
-    #if 0
-    std::cout << "reading size?" << std::endl;
-    char buffer[1024];
-    std::string number;
-    for(bool seenNewline = false; !seenNewline;) {
-        int bytesRead = read(_fdRd, buffer, sizeof(buffer));
-        for(int i = 0; i < bytesRead; ++i) {
-            if(buffer[i] == '\n')
-                seenNewline = true;
-        }
-        number.append(buffer, bytesRead);
-    }
-    long long size;
-    ASSERT_OK(NumberParser::strToAny()(number.c_str(), &size));
-    std::cout << "size: " << size << std::endl;
-    std::string values;
-    for(int bytesRead = 0; size; size -= bytesRead) {
-        bytesRead = read(_fdRd, &buffer, sizeof(buffer));
-        values.append(buffer, bytesRead);
-    }
-    if(onResult(values)) {
-        std::cout << "PASSED" << std::endl;
-    } else {
-        std::cout << "FAILED" << std::endl;
-    }
-    #endif
 }
 
 }  // namespace mongo
@@ -205,18 +172,129 @@ int main(int argc, char **argv) {
 
     mongo::USDTProbeTest tester(fdRd, fdWr);
 
-    std::vector<mongo::USDTProbe> probes;
-    probes.push_back(mongo::USDTProbe("probe", 1, [](const auto& res) -> bool {
-        std::cout << "ONRESULT" << std::endl;
+    // dumb test
+    std::vector<mongo::USDTProbe> dumbProbes;
+    dumbProbes.push_back(mongo::USDTProbe("aProbe", 15, [](const auto& res) -> bool {
+        return true;
+    }));
+    tester.runTest(dumbProbes, []() -> void {
+        for(int i=0; i<15; i++) {
+            MONGO_USDT(aProbe);
+        }
+    });
+
+    // test Int args
+    std::vector<mongo::USDTProbe> intProbes;
+    intProbes.push_back(mongo::USDTProbe("probe1", 1, [](const auto& res) -> bool {
         int val = -1;
         uassertStatusOK(mongo::NumberParser{}(res.c_str(), &val));
         return val == 42;
-    }).withArg(mongo::USDTProbeArg(mongo::USDTProbeType::INT)));
+    }).withIntArg());
 
-    tester.runTest(probes, []() -> void {
-        std::cout << "ONTEST" << std::endl;
-        MONGO_USDT(probe, 42);
+    intProbes.push_back(mongo::USDTProbe("probe2", 1, [](const auto& res) -> bool {
+        int val1 = -1;
+        int val2 = -2;
+
+        mongo::NumberParser p;
+        p.allowTrailingText()
+         .skipWhitespace();
+        
+        char *s;
+        uassertStatusOK(p(res.c_str(), &val1, &s));
+        uassertStatusOK(p(s, &val2));
+
+        return val1 == 1 && val2 == 2;
+    }).withIntArg(2));
+
+    intProbes.push_back(mongo::USDTProbe("probe12", 1, [](const auto& res) -> bool {
+        int val = -1;
+        mongo::NumberParser p;
+        p.allowTrailingText()
+         .skipWhitespace();
+
+        char *s = const_cast<char *>(res.c_str());
+        for(int i=12; i<24; i++) {
+            uassertStatusOK(p(s, &val, &s));
+            if (val != i) return false;
+        }
+
+        return true;
+    }).withIntArg(12));
+
+    intProbes.push_back(mongo::USDTProbe("probe1223", 23, [](const auto& res) -> bool {
+        int val = -1;
+        mongo::NumberParser p;
+        p.allowTrailingText()
+         .skipWhitespace();
+
+        char *s = const_cast<char *>(res.c_str());
+        for(int i=12; i<24; i++) {
+            uassertStatusOK(p(s, &val, &s));
+            if (val != i) return false;
+        }
+
+        return true;
+    }).withIntArg(12));
+
+    tester.runTest(intProbes, []() -> void {
+        MONGO_USDT(probe1, 42);
+        MONGO_USDT(probe2, 1, 2);
+        MONGO_USDT(probe12, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23);
+        for(int i=0; i<23; i++) {
+            MONGO_USDT(probe1223, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23);
+        }
     });
+
+    // TODO: test String args
+    #if 0
+    std::vector<mongo::USDTProbe> strProbes;
+    strProbes.push_back(mongo::USDTProbe("probe1", 1, [](const auto& res) -> bool {
+        return val == "albatross";
+    }).withIntArg());
+
+    strProbes.push_back(mongo::USDTProbe("probe2", 1, [](const auto& res) -> bool {
+        return val1 == 1 && val2 == 2;
+    }).withIntArg(2));
+
+    strProbes.push_back(mongo::USDTProbe("probe12", 1, [](const auto& res) -> bool {
+        int val = -1;
+        mongo::NumberParser p;
+        p.allowTrailingText()
+         .skipWhitespace();
+
+        char *s = const_cast<char *>(res.c_str());
+        for(int i=12; i<24; i++) {
+            uassertStatusOK(p(s, &val, &s));
+            if (val != i) return false;
+        }
+
+        return true;
+    }).withIntArg(12));
+
+    strProbes.push_back(mongo::USDTProbe("probe1223", 23, [](const auto& res) -> bool {
+        int val = -1;
+        mongo::NumberParser p;
+        p.allowTrailingText()
+         .skipWhitespace();
+
+        char *s = const_cast<char *>(res.c_str());
+        for(int i=12; i<24; i++) {
+            uassertStatusOK(p(s, &val, &s));
+            if (val != i) return false;
+        }
+
+        return true;
+    }).withIntArg(12));
+
+    tester.runTest(strProbes, []() -> void {
+        MONGO_USDT(probe1, 42);
+        MONGO_USDT(probe2, 1, 2);
+        MONGO_USDT(probe12, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23);
+        for(int i=0; i<23; i++) {
+            MONGO_USDT(probe1223, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23);
+        }
+    });
+    #endif
 
     return 0;
 }
