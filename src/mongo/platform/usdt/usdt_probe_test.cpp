@@ -69,7 +69,7 @@ std::string USDTProbeArg::toJSONStr() {
 std::string USDTProbe::toJSONStr() {
     std::stringstream ss;
     ss << "{\"name\":\"" << name << "\",";
-    ss << "\"hits\":" << _hits << ',';
+    ss << "\"hits\":" << hits << ',';
     ss << "\"args\":[";
     bool first = true;
     for(unsigned short i=0; i<_argc; i++) {
@@ -110,7 +110,9 @@ std::string readLine(int fdRd, int maxLen = 1024) {
         count++;
     }
 
-    return ss.str();
+    auto tmp = ss.str();
+    //std::cout << "******" << tmp << "******" << std::endl;
+    return tmp;
 }
 
 USDTProbeTest::~USDTProbeTest() {
@@ -146,17 +148,25 @@ void USDTProbeTest::runTest(const std::vector<USDTProbe> &probes,
     toTest();
     // retrieve test results
     std::string line;
-    int size = 1024; // TODO verify this/ get from py
+    int size;
+
+    // TODO: size should be produced before every probe
+    line = readLine(_fdRd);
+    uassertStatusOK(mongo::NumberParser{}
+        .allowTrailingText()
+        .skipWhitespace()(line.c_str(), &size));
+
     for(auto probe : probes) {
         line = readLine(_fdRd);
         ASSERT_EQ(line, probe.name);
-       
-        line = readLine(_fdRd, size); // get results
 
-        if(probe.onResult(line)) {
-            std::cout << "PASSED" << std::endl;
-        } else {
-            std::cout << "FAILED" << std::endl;
+        for(int hit = 0; hit < probe.hits; hit++) {
+            line = readLine(_fdRd);
+            if (probe.onResult(line, hit)) {
+                std::cout << "PASSED [" << (hit+1) << '/' << probe.hits << ']' << std::endl;
+            } else {
+                std::cout << "FAILED [" << (hit+1) << '/' << probe.hits << ']' << std::endl;
+            }
         }
     }
 }
@@ -174,7 +184,7 @@ int main(int argc, char **argv) {
 
     // dumb test
     std::vector<mongo::USDTProbe> dumbProbes;
-    dumbProbes.push_back(mongo::USDTProbe("aProbe", 15, [](const auto& res) -> bool {
+    dumbProbes.push_back(mongo::USDTProbe("aProbe", 15, [](const auto& res, int hit) -> bool {
         return true;
     }));
     tester.runTest(dumbProbes, []() -> void {
@@ -185,13 +195,15 @@ int main(int argc, char **argv) {
 
     // test Int args
     std::vector<mongo::USDTProbe> intProbes;
-    intProbes.push_back(mongo::USDTProbe("probe1", 1, [](const auto& res) -> bool {
+    intProbes.push_back(mongo::USDTProbe("probe1", 1, [](const auto& res, int hit) -> bool {
         int val = -1;
-        uassertStatusOK(mongo::NumberParser{}(res.c_str(), &val));
+        uassertStatusOK(mongo::NumberParser{}
+            .allowTrailingText()
+            .skipWhitespace()(res.c_str(), &val));
         return val == 42;
     }).withIntArg());
 
-    intProbes.push_back(mongo::USDTProbe("probe2", 1, [](const auto& res) -> bool {
+    intProbes.push_back(mongo::USDTProbe("probe2", 1, [](const auto& res, int hit) -> bool {
         int val1 = -1;
         int val2 = -2;
 
@@ -206,7 +218,7 @@ int main(int argc, char **argv) {
         return val1 == 1 && val2 == 2;
     }).withIntArg(2));
 
-    intProbes.push_back(mongo::USDTProbe("probe12", 1, [](const auto& res) -> bool {
+    intProbes.push_back(mongo::USDTProbe("probe12", 1, [](const auto& res, int hit) -> bool {
         int val = -1;
         mongo::NumberParser p;
         p.allowTrailingText()
@@ -221,7 +233,7 @@ int main(int argc, char **argv) {
         return true;
     }).withIntArg(12));
 
-    intProbes.push_back(mongo::USDTProbe("probe1223", 23, [](const auto& res) -> bool {
+    intProbes.push_back(mongo::USDTProbe("probe1223", 23, [](const auto& res, int hit) -> bool {
         int val = -1;
         mongo::NumberParser p;
         p.allowTrailingText()
@@ -230,7 +242,7 @@ int main(int argc, char **argv) {
         char *s = const_cast<char *>(res.c_str());
         for(int i=12; i<24; i++) {
             uassertStatusOK(p(s, &val, &s));
-            if (val != i) return false;
+            if (val != i + hit) return false;
         }
 
         return true;
@@ -241,7 +253,7 @@ int main(int argc, char **argv) {
         MONGO_USDT(probe2, 1, 2);
         MONGO_USDT(probe12, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23);
         for(int i=0; i<23; i++) {
-            MONGO_USDT(probe1223, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23);
+            MONGO_USDT(probe1223, i+12, i+13, i+14, i+15, i+16, i+17, i+18, i+19, i+20, i+21, i+22, i+23);
         }
     });
 
