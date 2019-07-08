@@ -154,7 +154,7 @@ def stringify_arg(event, arg):
     else:
         actual = getattr(event, arg.output_arg_name)
         if arg.type == STRING_TYPE:
-            res += '"' + str(actual, 'utf-8') + '" '
+            res += '"' + str(actual, 'utf-8').replace('"', '\\"') + '" '
         else:
             res += str(actual) + ' '
     print(arg, res)
@@ -198,19 +198,17 @@ def run(reader, writer, pid):
         # the timeout is in miliseconds (same as syscall poll)
         bpf_obj.perf_buffer_poll(1000)
 
-        all_bytes = bytes()
         for probe in probes:
-            all_bytes += bytes(probe.name, 'utf-8')
-            all_bytes += b'\n'
+            writer.write(bytes(probe.name, 'utf-8'))
+            writer.write(b'\n')
             for val in probe_values[probe.name]:
-                all_bytes += bytes(val, 'utf-8')
-
-        writer.write(bytes(str(len(all_bytes)), 'utf-8'))
-        writer.write(b'\n')
-        writer.write(all_bytes)
+                bytesVal = bytes(val, 'utf-8')
+                writer.write(bytes(str(len(bytesVal)), 'utf-8'))
+                writer.write(b'\n')
+                writer.write(bytesVal)
 
         print("\n\n\n==================SUMMARY=================")
-        print("SUCCEEDED: {}".format(all_bytes))
+        print("SUCCEEDED: All iterations hit for probes.")
 
 if __name__ == '__main__':
     main()

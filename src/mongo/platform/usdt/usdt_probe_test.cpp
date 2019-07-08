@@ -146,6 +146,17 @@ std::string readLine(int fdRd, int maxLen = 1024) {
     return tmp;
 }
 
+std::string readUpTo(int fdRd, int len) {
+    std::stringstream ss;
+    int count = 0;
+    while(count < len) {
+        std::string s = readLine(fdRd);
+        count += 1 + s.length();
+        ss << s << "\n";
+    }
+    return ss.str();
+}
+
 USDTProbeTest::~USDTProbeTest() {
     setUp();
     size_t bytesWritten = write(_fdWr, "0\n", 2);
@@ -177,15 +188,10 @@ bool USDTProbeTest::runTest(const std::vector<USDTProbe> &probes,
     // run actual test 
     setUp();
     toTest();
+ 
     // retrieve test results
     std::string line;
     int size;
-
-    // TODO: size should be produced before every probe
-    line = readLine(_fdRd);
-    uassertStatusOK(mongo::NumberParser{}
-        .allowTrailingText()
-        .skipWhitespace()(line.c_str(), &size));
 
     bool passed = true;
     for(auto probe : probes) {
@@ -194,6 +200,10 @@ bool USDTProbeTest::runTest(const std::vector<USDTProbe> &probes,
 
         for(int hit = 0; hit < probe.hits; hit++) {
             line = readLine(_fdRd);
+            uassertStatusOK(mongo::NumberParser{}
+                .allowTrailingText()
+                .skipWhitespace()(line.c_str(), &size));
+            line = readUpTo(_fdRd, size);//readLine(_fdRd);// TODO readUpTo(_fdRd, size);
             if (probe.onResult(line, hit)) {
                 std::cout << "PASSED [" << (hit+1) << '/' << probe.hits << ']' << std::endl;
             } else {
@@ -323,11 +333,19 @@ int main(int argc, char **argv) {
         probe12Str.withStringArg(i >= 10 ? 6 : 5);
     }
 
-    ASSERT(tester.runTest(strProbes, []() -> void {
+    strProbes.push_back(mongo::USDTProbe("probeComplex", 1, [](const auto& res, int hit) -> bool {
+        return std::string("hello, World!\n \"salut, monde!\"")
+                .compare(mongo::USDTProbeArg::getNextString(res)) == 0;
+    }).withStringArg(34));
+
+    tester.runTest(strProbes, []() -> void {
         MONGO_USDT(probeA, "albatross");
         MONGO_USDT(probeB, "bard", "cantaLoupe!");
         MONGO_USDT(probeC, "str0", "str1", "str2", "str3", "str4", "str5", "str6", "str7", "str8", "str9", "str10", "str11");
-    }));
+        MONGO_USDT(probeComplex, "hello, World!\n \"salut, monde!\"");
+    });
+
+    // TODO; test structs
 
     return 0;
 }
