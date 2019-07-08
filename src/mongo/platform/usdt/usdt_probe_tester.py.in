@@ -179,12 +179,14 @@ def main():
         bpf_obj.perf_buffer_poll(1000)
 
         all_bytes = bytes()
-        for name, values in probe_values.items():
-            all_bytes += bytes(name, 'utf-8')
-            for val in values:
+        for probe in probes:
+            all_bytes += bytes(probe.name, 'utf-8')
+            all_bytes += b'\n'
+            for val in probe_values[probe.name]:
                 all_bytes += bytes(val, 'utf-8')
+            all_bytes += b'\n'
 
-        writer.write(bytes(str(len(all_bytes)), 'utf-8')) #write as string to avoid writing an explicit number of bytes
+        writer.write(bytes(str(len(all_bytes)), 'utf-8'))
         writer.write(b'\n')
         writer.write(all_bytes)
 
