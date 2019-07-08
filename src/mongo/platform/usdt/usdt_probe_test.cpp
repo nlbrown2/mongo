@@ -61,6 +61,8 @@ std::string USDTProbeArg::toJSONStr() {
             ss << arg.toJSONStr();
         }
         ss << "]";
+    } else if(type == USDTProbeType::STRING) {
+        ss << ", \"length\":" << _length;
     }
     ss << "}";
     return ss.str();
@@ -173,6 +175,8 @@ void USDTProbeTest::runTest(const std::vector<USDTProbe> &probes,
 
 }  // namespace mongo
 
+// TODO nack tests, @ACB, per iteration
+
 int main(int argc, char **argv) {
     ASSERT_EQ(argc, 3);
 
@@ -193,7 +197,7 @@ int main(int argc, char **argv) {
         }
     });
 
-    // test Int args
+    // test INT args
     std::vector<mongo::USDTProbe> intProbes;
     intProbes.push_back(mongo::USDTProbe("probe1", 1, [](const auto& res, int hit) -> bool {
         int val = -1;
@@ -257,56 +261,27 @@ int main(int argc, char **argv) {
         }
     });
 
-    // TODO: test String args
-    #if 0
+    // TODO: test STRING args
+    
     std::vector<mongo::USDTProbe> strProbes;
-    strProbes.push_back(mongo::USDTProbe("probe1", 1, [](const auto& res) -> bool {
-        return val == "albatross";
-    }).withIntArg());
+    strProbes.push_back(mongo::USDTProbe("probeA", 1, [](const auto& res, int hit) -> bool {
+        return std::string("\"albatross\"").compare(res) == 0;
+    }).withStringArg(10));
 
-    strProbes.push_back(mongo::USDTProbe("probe2", 1, [](const auto& res) -> bool {
-        return val1 == 1 && val2 == 2;
-    }).withIntArg(2));
-
-    strProbes.push_back(mongo::USDTProbe("probe12", 1, [](const auto& res) -> bool {
-        int val = -1;
-        mongo::NumberParser p;
-        p.allowTrailingText()
-         .skipWhitespace();
-
-        char *s = const_cast<char *>(res.c_str());
-        for(int i=12; i<24; i++) {
-            uassertStatusOK(p(s, &val, &s));
-            if (val != i) return false;
-        }
-
-        return true;
-    }).withIntArg(12));
-
-    strProbes.push_back(mongo::USDTProbe("probe1223", 23, [](const auto& res) -> bool {
-        int val = -1;
-        mongo::NumberParser p;
-        p.allowTrailingText()
-         .skipWhitespace();
-
-        char *s = const_cast<char *>(res.c_str());
-        for(int i=12; i<24; i++) {
-            uassertStatusOK(p(s, &val, &s));
-            if (val != i) return false;
-        }
-
-        return true;
-    }).withIntArg(12));
+    strProbes.push_back(mongo::USDTProbe("probeB", 1, [](const auto& res, int hit) -> bool {
+        std::cout << res << std::endl;
+        std::stringstream ss(res);
+        std::string s1, s2;
+        ss >> s1;
+        ss >> s2;
+        return std::string("\"bard\"").compare(s1) == 0
+                && std::string("\"cantaLoupe!\"").compare(s2) == 0;
+    }).withStringArg(5).withStringArg(12));
 
     tester.runTest(strProbes, []() -> void {
-        MONGO_USDT(probe1, 42);
-        MONGO_USDT(probe2, 1, 2);
-        MONGO_USDT(probe12, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23);
-        for(int i=0; i<23; i++) {
-            MONGO_USDT(probe1223, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23);
-        }
+        MONGO_USDT(probeA, "albatross");
+        MONGO_USDT(probeB, "bard", "cantaLoupe!");
     });
-    #endif
 
     return 0;
 }

@@ -41,6 +41,7 @@ enum USDTProbeType {
 
 class USDTProbeArg {
     std::vector<USDTProbeArg> _members;
+    int _length;
 
 public:
     USDTProbeType type; // TODO: can't be const
@@ -53,6 +54,12 @@ public:
         _members.push_back(arg);
         return *this; 
     }
+
+    USDTProbeArg& withLength(int length) {
+        ASSERT_EQ(type, USDTProbeType::STRING);
+        _length = length;
+        return *this;
+    } 
 
     std::string toJSONStr();
 };
@@ -85,10 +92,8 @@ public:
         return *this;
     }
 
-    USDTProbe& withStringArg(int num = 1) {
-        for(int i=0; i<num; i++) {
-            withArg(USDTProbeArg(USDTProbeType::INT));
-        }
+    USDTProbe& withStringArg(int length) {
+        withArg(USDTProbeArg(USDTProbeType::STRING).withLength(length));
         return *this;
     }
 
