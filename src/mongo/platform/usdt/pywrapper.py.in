@@ -31,4 +31,4 @@ os.close(cpp_rd)
 os.close(py_wr)
 os.close(py_rd)
 
-print("Donezo")
+print("Done.")

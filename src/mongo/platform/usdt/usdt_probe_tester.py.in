@@ -178,20 +178,15 @@ def main():
         # the timeout is in miliseconds (same as syscall poll)
         bpf_obj.perf_buffer_poll(1000)
 
-        total_size = 0
-        for _, arr in probe_values.items():
-            for string in arr:
-                total_size += len(string)
+        all_bytes = bytes()
+        for name, values in probe_values.items():
+            all_bytes += bytes(name, 'utf-8')
+            for val in values:
+                all_bytes += bytes(val, 'utf-8')
 
-        writer.write(bytes(str(total_size), 'utf-8')) # write the size as a utf-8 string
-        print("printing: ", total_size)
-        for name, arr in probe_values.items():
-            print(name)
-            writer.write(bytes(name, 'utf-8'))
-            writer.write(b'\n')
-            for val in arr:
-                print(val)
-                writer.write(bytes(val, 'utf-8'))
+        writer.write(bytes(str(len(all_bytes)), 'utf-8')) #write as string to avoid writing an explicit number of bytes
+        writer.write(b'\n')
+        writer.write(all_bytes)
 
         print("\n\n\n==================SUMMARY=================")
         print("SUCCEEDED")

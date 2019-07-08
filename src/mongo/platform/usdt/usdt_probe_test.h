@@ -29,8 +29,57 @@
 
 #include <functional>
 #include <string>
+#include <vector>
+
+#include "mongo/unittest/unittest.h"
 
 namespace mongo {
+
+enum USDTProbeType {
+    INT, STRING, STRUCT
+};
+
+class USDTProbeArg {
+    std::vector<USDTProbeArg> _members;
+
+public:
+    USDTProbeType type; // TODO: can't be const
+
+    USDTProbeArg() : _members(), type(USDTProbeType::INT) {}
+    USDTProbeArg(USDTProbeType type) : _members(), type(type) {}
+    
+    USDTProbeArg& withMember(USDTProbeArg arg) {
+        ASSERT_EQ(type, USDTProbeType::STRUCT);
+        _members.push_back(arg);
+        return *this; 
+    }
+
+    std::string toJSONStr();
+};
+
+class USDTProbe {
+    USDTProbeArg _args[12]; 
+    unsigned short _argc;
+    int _hits;
+
+public:
+    const std::string &name;
+    const std::function<bool (const std::string&)>& onResult;
+
+    USDTProbe(const std::string &name,
+              int hits,
+              const std::function<bool (const std::string&)>& onResult)
+        : _argc(0), _hits(hits), name(name), onResult(onResult) {}
+
+    USDTProbe& withArg(USDTProbeArg arg) {
+        ASSERT_LT(_argc, 12);
+        _args[_argc] = arg;
+        _argc++;
+        return *this;
+    }
+
+    std::string toJSONStr();
+};
 
 class USDTProbeTest {
     int _fdRd;
@@ -42,7 +91,8 @@ public:
     USDTProbeTest(int fdRd, int fdWr) : _fdRd(fdRd), _fdWr(fdWr) {}
     ~USDTProbeTest();
 
-    void runTest(const std::string &json, const std::function<void()> &toTest, const std::function<bool (const std::string&)>& passed);
+    void runTest(const std::vector<USDTProbe> &probes,
+                 const std::function<void()> &toTest);
 };
 
 }  // namespace mongo

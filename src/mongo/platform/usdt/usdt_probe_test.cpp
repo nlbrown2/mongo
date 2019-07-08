@@ -39,16 +39,85 @@
 
 #include "mongo/base/parse_number.h"
 #include "mongo/platform/usdt.h"
-#include "mongo/unittest/unittest.h"
 #include "mongo/util/assert_util.h"
 
 namespace mongo {
+
+std::string USDTProbeArg::toJSONStr() {
+    std::stringstream ss;
+    ss << "{\"type\":\"";
+    ss << (type == USDTProbeType::INT ? "int" :
+            (type == USDTProbeType::STRING ? "str" : "struct"));
+    ss << "\"";
+    if (type == USDTProbeType::STRUCT) {
+        ss << ", \"values\":[";
+        bool first = true;
+        for (auto arg: _members) {
+            if (first) {
+                first = false;
+            } else {
+                ss << ',';
+            }
+            ss << arg.toJSONStr();
+        }
+        ss << "]";
+    }
+    ss << "}";
+    return ss.str();
+}
+
+std::string USDTProbe::toJSONStr() {
+    std::stringstream ss;
+    ss << "{\"name\":\"" << name << "\",";
+    ss << "\"hits\":" << _hits << ',';
+    ss << "\"args\":[";
+    bool first = true;
+    for(unsigned short i=0; i<_argc; i++) {
+        if (first) {
+            first = false;
+        } else {
+            ss << ',';
+        }
+        ss << _args[i].toJSONStr();
+    }
+    ss << "]}";
+    return ss.str();
+}
+
+std::string toJSONStr(const std::vector<USDTProbe> &probes) {
+    std::stringstream ss;
+    ss << "{\"probes\":[";
+    bool first = true;
+    for(auto probe: probes) {
+        if (first) {
+            first = false;
+        } else {
+            ss << ',';
+        }
+        ss << probe.toJSONStr();
+    }
+    ss << "]}";
+    return ss.str();
+}
+
+std::string readLine(int fdRd, int maxLen = 1024) {
+    std::stringstream ss;
+
+    int count = 0;
+    char c;
+    while(read(fdRd, &c, 1) && c != '\n' && count < maxLen) {
+        std::cout << "**" << c << std::endl;
+        ss << c;
+        count++;
+    }
+
+    return ss.str();
+}
 
 USDTProbeTest::~USDTProbeTest() {
     setUp();
     size_t bytesWritten = write(_fdWr, "0\n", 2);
     ASSERT(bytesWritten == 2);
-    std::cout << "Hand unshook." << std::endl;
 }
 
 // handshake with python script
@@ -56,14 +125,16 @@ void USDTProbeTest::setUp() {
     char ack;
     size_t bytesRead = read(_fdRd, &ack, 1);
     ASSERT(bytesRead == 1 && ack == '>');
-    std::cout << "Hand shook!" << std::endl;
 }
 
-void USDTProbeTest::runTest(const std::string &json, const std::function<void()> &toTest, const std::function<bool(const std::string&)>& onResult) {
+// ASSUMPTION: TODO @Nathan? does results guarantee probe order?
+void USDTProbeTest::runTest(const std::vector<USDTProbe> &probes,
+                            const std::function<void()> &toTest) {
     setUp();
 
     // tell python what to expect
     std::stringstream ss;
+    std::string json = toJSONStr(probes);
     ss << json.size() << std::endl;
     std::string sz = ss.str();
 
@@ -71,12 +142,31 @@ void USDTProbeTest::runTest(const std::string &json, const std::function<void()>
     ASSERT(bytesWritten == sz.size());
     bytesWritten = write(_fdWr, json.c_str(), json.size());
     ASSERT(bytesWritten == json.size());
-    
-    std::cout << "JSON written:" << std::endl << json << std::endl; 
 
     // run actual test 
     setUp();
     toTest();
+    // retrieve test results
+    std::string line;
+    int size = 1024; // TODO verify this/ get from py
+    for(auto probe : probes) {
+        std::cout << "READ RES OF " << probe.name << std::endl;
+        line = readLine(_fdRd);
+        ASSERT_EQ(line, probe.name);
+       
+        //line = readLine(_fdRd);
+        //uassertStatusOK(mongo::NumberParser{}(line, &size));
+        line = readLine(_fdRd, size); // get results
+        std::cout << line << "***" << std::endl;
+
+        if(probe.onResult(line)) {
+            std::cout << "PASSED" << std::endl;
+        } else {
+            std::cout << "FAILED" << std::endl;
+        }
+    }
+
+    #if 0
     std::cout << "reading size?" << std::endl;
     char buffer[1024];
     std::string number;
@@ -101,6 +191,7 @@ void USDTProbeTest::runTest(const std::string &json, const std::function<void()>
     } else {
         std::cout << "FAILED" << std::endl;
     }
+    #endif
 }
 
 }  // namespace mongo
@@ -114,64 +205,18 @@ int main(int argc, char **argv) {
 
     mongo::USDTProbeTest tester(fdRd, fdWr);
 
-    tester.runTest(R"(
-                {"probes": [{
-                    "name": "new_json",
-                    "hits": 1,
-                    "args": [
-                        {   "type": "struct",
-                            "values": [
-                        {
-                            "type": "int"
-                        },{
-                            "type": "str",
-                            "length": 20
-                        },{
-                            "type": "struct",
-                            "values": [
-                                {
-                                    "type": "int"
-                                },{
-                                    "type": "struct",
-                                    "values": [
-                                        {
-                                            "type": "int"
-                                        }
-                                    ]
-                                }
-                            ] 
-                        }]}
-                    ] 
-                }]})", []() -> void {
-            struct {
-                int val = 42;
-                char str[20] = "Hello, world!";
-                struct {
-                    int num = 43;
-                    struct{
-                        int hidden = 44;
-                    } double_nest;
-                } nested;
-            } Struct;
-            std::cout << "pre probe" << std::endl;
-            MONGO_USDT(new_json, &Struct);
-            std::cout << "post probe" << std::endl;
-    }, [](const std::string& from_pipe) {
-        std::cout << "Got: " << from_pipe << std::endl;
-        return false;
+    std::vector<mongo::USDTProbe> probes;
+    probes.push_back(mongo::USDTProbe("probe", 1, [](const auto& res) -> bool {
+        std::cout << "ONRESULT" << std::endl;
+        int val = -1;
+        uassertStatusOK(mongo::NumberParser{}(res.c_str(), &val));
+        return val == 42;
+    }).withArg(mongo::USDTProbeArg(mongo::USDTProbeType::INT)));
+
+    tester.runTest(probes, []() -> void {
+        std::cout << "ONTEST" << std::endl;
+        MONGO_USDT(probe, 42);
     });
- 
-    /* tester.runTest("{ \"probes\": [] }", []() -> void { */
-    /*     std::cout << "No probes!" << std::endl; */        
-    /* }); */
-
-    /* tester.runTest("{ \"probes\": [ {\"name\": \"probe1\", \"hits\": 1, \"args\": [] } ] }", []() -> void { */
-    /*     MONGO_USDT(probe1); */
-    /* }); */
-
-    /* tester.runTest("{ \"probes\": [ {\"name\": \"probe2\", \"hits\": 1, \"args\": [ { \"type\": \"int\", \"value\": 42} ] } ] }", []() -> void { */
-    /*     MONGO_USDT(probe2, 42); */
-    /* }); */
 
     return 0;
 }
