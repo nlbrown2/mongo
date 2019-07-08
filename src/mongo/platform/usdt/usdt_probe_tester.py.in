@@ -192,7 +192,7 @@ def main():
         writer.write(all_bytes)
 
         print("\n\n\n==================SUMMARY=================")
-        print("SUCCEEDED")
+        print("SUCCEEDED: {}".format(all_bytes))
 
 if __name__ == '__main__':
     main()

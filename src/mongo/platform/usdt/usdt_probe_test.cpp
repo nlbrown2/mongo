@@ -31,7 +31,6 @@
 
 #include <fcntl.h>
 #include <iostream>
-#include <sstream>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -42,6 +41,36 @@
 #include "mongo/util/assert_util.h"
 
 namespace mongo {
+
+std::string USDTProbeArg::getNextString(const std::string &in) {
+    std::stringstream ss(in);
+    return getNextString(ss);
+}
+
+std::string USDTProbeArg::getNextString(std::stringstream &in) {
+    std::stringstream ssOut;
+    char c;
+
+    // toss out whitespace
+    in >> std::ws;
+    in >> c;
+    ASSERT(c == '"');
+
+    while(in.get(c)) {
+        if (c == '\\' && in.peek() == '"') {
+            in >> c;
+            ssOut << c;
+            continue; // remove escape slash & pass along quote
+        } else if (c == '"') {
+            break;
+        }
+        ssOut << c;
+    }
+
+    std::string out = ssOut.str();
+    ASSERT(out.length() > 0);
+    return out;
+}
 
 std::string USDTProbeArg::toJSONStr() {
     std::stringstream ss;
@@ -130,7 +159,7 @@ void USDTProbeTest::setUp() {
     ASSERT(bytesRead == 1 && ack == '>');
 }
 
-void USDTProbeTest::runTest(const std::vector<USDTProbe> &probes,
+bool USDTProbeTest::runTest(const std::vector<USDTProbe> &probes,
                             const std::function<void()> &toTest) {
     setUp();
 
@@ -158,6 +187,7 @@ void USDTProbeTest::runTest(const std::vector<USDTProbe> &probes,
         .allowTrailingText()
         .skipWhitespace()(line.c_str(), &size));
 
+    bool passed = true;
     for(auto probe : probes) {
         line = readLine(_fdRd);
         ASSERT_EQ(line, probe.name);
@@ -168,14 +198,17 @@ void USDTProbeTest::runTest(const std::vector<USDTProbe> &probes,
                 std::cout << "PASSED [" << (hit+1) << '/' << probe.hits << ']' << std::endl;
             } else {
                 std::cout << "FAILED [" << (hit+1) << '/' << probe.hits << ']' << std::endl;
+                passed = false;
             }
         }
     }
+
+    return passed;
 }
 
 }  // namespace mongo
 
-// TODO nack tests, @ACB, per iteration
+// TODO test negative cases
 
 int main(int argc, char **argv) {
     ASSERT_EQ(argc, 3);
@@ -184,18 +217,18 @@ int main(int argc, char **argv) {
     uassertStatusOK(mongo::NumberParser{}(argv[1], &fdRd));
     uassertStatusOK(mongo::NumberParser{}(argv[2], &fdWr));
 
-    mongo::USDTProbeTest tester(fdRd, fdWr);
+    mongo::USDTProbeTest tester(fdRd, fdWr);     
 
     // dumb test
     std::vector<mongo::USDTProbe> dumbProbes;
     dumbProbes.push_back(mongo::USDTProbe("aProbe", 15, [](const auto& res, int hit) -> bool {
         return true;
     }));
-    tester.runTest(dumbProbes, []() -> void {
+    ASSERT(tester.runTest(dumbProbes, []() -> void {
         for(int i=0; i<15; i++) {
             MONGO_USDT(aProbe);
         }
-    });
+    }));
 
     // test INT args
     std::vector<mongo::USDTProbe> intProbes;
@@ -252,36 +285,49 @@ int main(int argc, char **argv) {
         return true;
     }).withIntArg(12));
 
-    tester.runTest(intProbes, []() -> void {
+    ASSERT(tester.runTest(intProbes, []() -> void {
         MONGO_USDT(probe1, 42);
         MONGO_USDT(probe2, 1, 2);
         MONGO_USDT(probe12, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23);
         for(int i=0; i<23; i++) {
             MONGO_USDT(probe1223, i+12, i+13, i+14, i+15, i+16, i+17, i+18, i+19, i+20, i+21, i+22, i+23);
         }
-    });
+    }));
 
-    // TODO: test STRING args
+    // test STRING args
     
     std::vector<mongo::USDTProbe> strProbes;
     strProbes.push_back(mongo::USDTProbe("probeA", 1, [](const auto& res, int hit) -> bool {
-        return std::string("\"albatross\"").compare(res) == 0;
+        return std::string("albatross").compare(mongo::USDTProbeArg::getNextString(res)) == 0;
     }).withStringArg(10));
 
     strProbes.push_back(mongo::USDTProbe("probeB", 1, [](const auto& res, int hit) -> bool {
-        std::cout << res << std::endl;
         std::stringstream ss(res);
-        std::string s1, s2;
-        ss >> s1;
-        ss >> s2;
-        return std::string("\"bard\"").compare(s1) == 0
-                && std::string("\"cantaLoupe!\"").compare(s2) == 0;
+        return std::string("bard").compare(mongo::USDTProbeArg::getNextString(ss)) == 0
+                && std::string("cantaLoupe!").compare(mongo::USDTProbeArg::getNextString(ss)) == 0;
     }).withStringArg(5).withStringArg(12));
+    
+    mongo::USDTProbe probe12Str("probeC", 1, [](const auto& res, int hit) -> bool {
+        std::stringstream ss(res);
+        bool passed = true;
+        for(int i=0; i<12; i++) {
+            std::string actual = mongo::USDTProbeArg::getNextString(ss);
+            std::stringstream nexts;
+            nexts << "str" << i;
+            passed = passed && (nexts.str().compare(actual) == 0);
+        }
+        return passed;
+    });
 
-    tester.runTest(strProbes, []() -> void {
+    for(int i=0; i<12; i++) {
+        probe12Str.withStringArg(i >= 10 ? 6 : 5);
+    }
+
+    ASSERT(tester.runTest(strProbes, []() -> void {
         MONGO_USDT(probeA, "albatross");
         MONGO_USDT(probeB, "bard", "cantaLoupe!");
-    });
+        MONGO_USDT(probeC, "str0", "str1", "str2", "str3", "str4", "str5", "str6", "str7", "str8", "str9", "str10", "str11");
+    }));
 
     return 0;
 }

@@ -28,6 +28,7 @@
  */
 
 #include <functional>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -62,6 +63,9 @@ public:
     } 
 
     std::string toJSONStr();
+
+    static std::string getNextString(std::stringstream &);
+    static std::string getNextString(const std::string &);
 };
 
 class USDTProbe {
@@ -110,7 +114,7 @@ public:
     USDTProbeTest(int fdRd, int fdWr) : _fdRd(fdRd), _fdWr(fdWr) {}
     ~USDTProbeTest();
 
-    void runTest(const std::vector<USDTProbe> &probes,
+    bool runTest(const std::vector<USDTProbe> &probes,
                  const std::function<void()> &toTest);
 };
 
