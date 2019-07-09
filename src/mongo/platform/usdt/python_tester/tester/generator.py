@@ -52,7 +52,7 @@ class Arg:
 
     def get_output_struct_def(self):
         if self.type != 'struct':
-            print(self.type)
+            #print(self.type)
             return '\r\t' + self.get_c_name() + ';\n'
         result = ''
         for arg in self.values:

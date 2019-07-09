@@ -127,7 +127,7 @@ def callback_gen(bpf_obj, probe, probe_hit_counts, output_arr):
                 break # no need to "fail" for every arg
         to_send += '\n'
         output_arr.append(to_send)
-        print(probe.name, ' iteration: {}...{}'.format(probe_hit_counts[probe.name], 'PASS' if passes else 'FAILED'))
+        #print(probe.name, ' iteration: {}...{}'.format(probe_hit_counts[probe.name], 'PASS' if passes else 'FAILED'))
         probe_hit_counts[probe.name] += 1
     return process_callback
 
@@ -157,7 +157,7 @@ def stringify_arg(event, arg):
             res += '"' + str(actual, 'utf-8').replace('"', '\\"') + '" '
         else:
             res += str(actual) + ' '
-    print(arg, res)
+    #print(arg, res)
     return res
 
 def expecting_more_probe_hits(probes, probe_hit_counts):
@@ -171,10 +171,10 @@ def run(reader, writer, pid):
     while True:
         writer.write(b'>')
         json_obj = load_json(reader, writer)
-        print(json_obj)
         if not json_obj:
-            print("All tests have run")
+            print("All tests have run\n")
             break
+        print("==================JSON========================\n{}\n".format(json_obj))
         probes = json_obj["probes"]
 
         gen = Generator()
@@ -182,7 +182,7 @@ def run(reader, writer, pid):
         for probe in probes:
             gen.add_probe(probe)
         bpf_text = gen.finish()
-        print("BPF program: ")
+        print("==================BPF PROGRAM=================")
         print(bpf_text)
         probe_hit_counts = {probe.name : 0 for probe in probes}
         probe_values = {probe.name : [] for probe in probes}
@@ -207,8 +207,8 @@ def run(reader, writer, pid):
                 writer.write(b'\n')
                 writer.write(bytesVal)
 
-        print("\n\n\n==================SUMMARY=================")
-        print("SUCCEEDED: All iterations hit for probes.")
+        print("\n\n\n==================SUMMARY====================")
+        print("SUCCEEDED: All iterations for probes were registered.")
 
 if __name__ == '__main__':
     main()
