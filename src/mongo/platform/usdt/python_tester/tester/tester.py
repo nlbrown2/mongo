@@ -20,6 +20,8 @@ def load_json(reader):
         json_text += read
 
     json_obj = json.loads(json_text)
+    if 'pid' in json_obj:
+        return int(json_obj["pid"])
     return [Probe(p) for p in json_obj["probes"]]
 
 def callback_gen(bpf_obj, probe, probe_hit_counts, output_arr):
@@ -72,14 +74,19 @@ def expecting_more_probe_hits(probes, probe_hit_counts):
             return True
     return False
 
-def run(reader, writer, pid):
+def run(reader, writer):
     """ run through all the tests specified by reader and provide results to writer """
+    pid = -1
     while True:
         writer.write(b'>')
         probes = load_json(reader)
         if not probes:
             print("All tests have run\n")
             break
+        elif isinstance(probes, int):
+            pid = probes
+            assert pid != -1
+            continue
 
         gen = Generator()
         for probe in probes:

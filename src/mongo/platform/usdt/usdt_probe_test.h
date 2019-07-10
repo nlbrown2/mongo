@@ -116,13 +116,18 @@ class USDTProbeTest {
     int _fdRd;
     int _fdWr;
 
-    void setUp();
+    void _initialize();
+    void _setUpTest();
+    void _writeJSONToPipe(const std::string &json);
 
 public:
-    USDTProbeTest(int fdRd, int fdWr) : _fdRd(fdRd), _fdWr(fdWr) {}
-    ~USDTProbeTest();
+    USDTProbeTest(int fdRd, int fdWr) : _fdRd(fdRd), _fdWr(fdWr) {
+        _initialize();
+    }
 
     bool runTest(const std::vector<USDTProbe>& probes, const std::function<void()>& toTest);
+
+    static std::string toJSONStr(const std::vector<USDTProbe>& probes);
 };
 
 }  // namespace mongo

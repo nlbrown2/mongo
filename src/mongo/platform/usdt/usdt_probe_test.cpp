@@ -131,22 +131,6 @@ std::string USDTProbe::toJSONStr() {
     return ss.str();
 }
 
-std::string toJSONStr(const std::vector<USDTProbe>& probes) {
-    std::stringstream ss;
-    ss << "{\"probes\":[";
-    bool first = true;
-    for (auto probe : probes) {
-        if (first) {
-            first = false;
-        } else {
-            ss << ',';
-        }
-        ss << probe.toJSONStr();
-    }
-    ss << "]}";
-    return ss.str();
-}
-
 std::string readLine(int fdRd, int maxLen = 1024) {
     std::stringstream ss;
 
@@ -172,26 +156,10 @@ std::string readUpTo(int fdRd, int len) {
     return ss.str();
 }
 
-USDTProbeTest::~USDTProbeTest() {
-    setUp();
-    size_t bytesWritten = write(_fdWr, "0\n", 2);
-    ASSERT(bytesWritten == 2);
-}
+void USDTProbeTest::_writeJSONToPipe(const std::string &json) {
+    _setUpTest();
 
-// handshake with python script
-void USDTProbeTest::setUp() {
-    char ack;
-    size_t bytesRead = read(_fdRd, &ack, 1);
-    ASSERT(bytesRead == 1 && ack == '>');
-}
-
-bool USDTProbeTest::runTest(const std::vector<USDTProbe>& probes,
-                            const std::function<void()>& toTest) {
-    setUp();
-
-    // tell python what to expect
     std::stringstream ss;
-    std::string json = toJSONStr(probes);
     ss << json.size() << std::endl;
     std::string sz = ss.str();
 
@@ -199,15 +167,49 @@ bool USDTProbeTest::runTest(const std::vector<USDTProbe>& probes,
     ASSERT(bytesWritten == sz.size());
     bytesWritten = write(_fdWr, json.c_str(), json.size());
     ASSERT(bytesWritten == json.size());
+}
 
-    // run actual test
-    setUp();
+// provide python script with this processes' pid
+void USDTProbeTest::_initialize() {
+    std::stringstream ss;
+    ss << "{\"pid\":" << getpid() << '}';
+    _writeJSONToPipe(ss.str());
+}
+
+// handshake with python script prior to each test
+void USDTProbeTest::_setUpTest() {
+    char ack;
+    size_t bytesRead = read(_fdRd, &ack, 1);
+    ASSERT(bytesRead == 1 && ack == '>');
+}
+
+std::string USDTProbeTest::toJSONStr(const std::vector<USDTProbe>& probes) {
+    std::stringstream ss;
+    ss << "{\"probes\":[";
+    bool first = true;
+    for (auto probe : probes) {
+        if (first) {
+            first = false;
+        } else {
+            ss << ',';
+        }
+        ss << probe.toJSONStr();
+    }
+    ss << "]}";
+    return ss.str();
+}
+
+bool USDTProbeTest::runTest(const std::vector<USDTProbe>& probes,
+                            const std::function<void()>& toTest) {
+    _writeJSONToPipe(toJSONStr(probes));
+
+    // run test to trigger probes
+    _setUpTest();
     toTest();
 
-    // retrieve test results
+    // collect & verify test results
     std::string line;
     int size;
-
     size_t numPassed = 0;
     for (auto probe : probes) {
         line = readLine(_fdRd);

@@ -10,16 +10,15 @@ from tester import tester
 def main():
     #pylint: disable=missing-docstring
     # parse command line args
-    if len(sys.argv) < 4:
-        print("Usage: " + sys.argv[0] + " <read fd> <write fd> <pid>")
+    if len(sys.argv) < 3:
+        print("Usage: " + sys.argv[0] + " <read fd> <write fd>")
         exit(1)
 
     read_fd = int(sys.argv[1])
     write_fd = int(sys.argv[2])
-    pid = int(sys.argv[3])
     writer = os.fdopen(write_fd, "wb", 0)
     reader = os.fdopen(read_fd, "rb", 0)
-    tester.run(reader, writer, pid)
+    tester.run(reader, writer)
 
 if __name__ == '__main__':
     main()

@@ -72,7 +72,7 @@ usdt_probe_test_cpp = env.Program(
 usdt_probe_test_dict = {
     '@usdt_probe_test_python_interpreter@' : sys.executable.replace('\\', r'\\'),
     '@usdt_probe_test_py@' : usdt_probe_test_py[0].name,
-    '@usdt_probe_test_cpp@' : usdt_probe_test_cpp[0].name,
+    '@usdt_probe_tests@' : usdt_probe_test_cpp[0].name, # TODO list of execs
 }
 
 usdt_probe_test_wrapper = env.Substfile(
