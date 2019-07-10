@@ -36,24 +36,22 @@
 
 namespace mongo {
 
-enum USDTProbeType {
-    INT, STRING, STRUCT
-};
+enum USDTProbeType { INT, STRING, STRUCT };
 
 class USDTProbeArg {
     std::vector<USDTProbeArg> _members;
     int _length;
 
 public:
-    USDTProbeType type; // TODO: can't be const
+    USDTProbeType type;  // TODO: can't be const
 
     USDTProbeArg() : _members(), type(USDTProbeType::INT) {}
     USDTProbeArg(USDTProbeType type) : _members(), type(type) {}
-    
+
     USDTProbeArg& withMember(USDTProbeArg arg) {
         ASSERT_EQ(type, USDTProbeType::STRUCT);
         _members.push_back(arg);
-        return *this; 
+        return *this;
     }
 
     USDTProbeArg& withIntMember() {
@@ -68,28 +66,28 @@ public:
         ASSERT_EQ(type, USDTProbeType::STRING);
         _length = length;
         return *this;
-    } 
+    }
 
     std::string toJSONStr();
 
-    static std::string getNextAsString(std::stringstream &);
-    static std::string getNextAsString(const std::string &);
-    static int getNextAsInt(std::stringstream &);
-    static int getNextAsInt(const std::string &);
+    static std::string getNextAsString(std::stringstream&);
+    static std::string getNextAsString(const std::string&);
+    static int getNextAsInt(std::stringstream&);
+    static int getNextAsInt(const std::string&);
 };
 
 class USDTProbe {
-    USDTProbeArg _args[12]; 
+    USDTProbeArg _args[12];
     unsigned short _argc;
 
 public:
     const int hits;
     const std::string name;
-    const std::function<bool (std::stringstream&, int)> onResult;
+    const std::function<bool(std::stringstream&, int)> onResult;
 
     USDTProbe(const std::string name,
               int hits,
-              const std::function<bool (std::stringstream&, int)> onResult)
+              const std::function<bool(std::stringstream&, int)> onResult)
         : _argc(0), hits(hits), name(name), onResult(onResult) {}
 
     USDTProbe& withArg(USDTProbeArg arg) {
@@ -100,7 +98,7 @@ public:
     }
 
     USDTProbe& withIntArg(int num = 1) {
-        for(int i=0; i<num; i++) {
+        for (int i = 0; i < num; i++) {
             withArg(USDTProbeArg(USDTProbeType::INT));
         }
         return *this;
@@ -124,8 +122,7 @@ public:
     USDTProbeTest(int fdRd, int fdWr) : _fdRd(fdRd), _fdWr(fdWr) {}
     ~USDTProbeTest();
 
-    bool runTest(const std::vector<USDTProbe> &probes,
-                 const std::function<void()> &toTest);
+    bool runTest(const std::vector<USDTProbe>& probes, const std::function<void()>& toTest);
 };
 
 }  // namespace mongo

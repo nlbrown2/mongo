@@ -63,5 +63,4 @@
 
 #endif  // MONGO_CONFIG_USDT_ENABLED
 
-namespace mongo {
-}  // namespace mongo
+namespace mongo {}  // namespace mongo
