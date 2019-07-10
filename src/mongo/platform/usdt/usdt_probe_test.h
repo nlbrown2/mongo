@@ -83,11 +83,11 @@ class USDTProbe {
 public:
     const int hits;
     const std::string name;
-    const std::function<bool(std::stringstream&, int)> onResult;
+    const std::function<void(std::stringstream&, int)> onResult;
 
     USDTProbe(const std::string name,
               int hits,
-              const std::function<bool(std::stringstream&, int)> onResult)
+              const std::function<void(std::stringstream&, int)> onResult)
         : _argc(0), hits(hits), name(name), onResult(onResult) {}
 
     USDTProbe& withArg(USDTProbeArg arg) {
