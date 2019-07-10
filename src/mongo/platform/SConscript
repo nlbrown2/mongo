@@ -4,9 +4,7 @@ import sys
 import SCons
 
 Import("env")
-
 env = env.Clone()
-
 env.CppUnitTest(
     target='platform_test',
     source=[
@@ -14,6 +12,7 @@ env.CppUnitTest(
         'atomic_word_test.cpp',
         'bits_test.cpp',
         'endian_test.cpp',
+        'mutex_test.cpp',
         'process_id_test.cpp',
         'random_test.cpp',
         'stack_locator_test.cpp',
@@ -67,8 +66,10 @@ usdt_probe_test_cpp = env.Program(
         '$BUILD_DIR/mongo/base',
         '$BUILD_DIR/mongo/unittest/unittest'
     ],
+    LIBDEPS=[
+        '$BUILD_DIR/mongo/db/service_context'
+    ]
 )
-
 usdt_probe_test_dict = {
     '@usdt_probe_test_python_interpreter@' : sys.executable.replace('\\', r'\\'),
     '@usdt_probe_test_py@' : usdt_probe_test_py[0].name,
