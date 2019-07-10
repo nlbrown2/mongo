@@ -208,7 +208,7 @@ bool USDTProbeTest::runTest(const std::vector<USDTProbe>& probes,
     std::string line;
     int size;
 
-    size_t num_passed = 0;
+    size_t numPassed = 0;
     for (auto probe : probes) {
         line = readLine(_fdRd);
         ASSERT_EQ(line, probe.name);
@@ -221,31 +221,33 @@ bool USDTProbeTest::runTest(const std::vector<USDTProbe>& probes,
             line = readUpTo(_fdRd, size);
             std::stringstream res(line);
             std::stringstream err;
+
             try {
                 probe.onResult(res, hit);
-                std::cout << "PASSED [" << (hit + 1) << '/' << probe.hits << ']' << std::endl;
                 passed = true;
             } catch (const unittest::TestAssertionFailureException& e) {
-                std::cout << "FAILED [" << (hit + 1) << '/' << probe.hits << ']' << std::endl;
                 err << e.toString() << '\n';
             } catch (const mongo::DBException& db) {
-                std::cout << "FAILED [" << (hit + 1) << '/' << probe.hits << ']' << std::endl;
                 err << db.toString() << '\n';
             } catch (const std::exception& ex) {
-                std::cout << "FAILED [" << (hit + 1) << '/' << probe.hits << ']' << std::endl;
                 err << ex.what() << '\n';
             } catch (int x) {
                 err << "caught int " << x << '\n';
             }
-            if (!passed) {
+
+            if (passed) {
+                std::cout << "PASSED [" << (hit + 1) << '/' << probe.hits << ']' << std::endl;
+            } else {
+                std::cout << "FAILED [" << (hit + 1) << '/' << probe.hits << ']' << std::endl;
                 std::cout << err.str() << std::endl;
             }
         }
-        if (passed)
-            num_passed++;
+        if (passed) {
+            numPassed++;
+        }
     }
 
-    return num_passed == probes.size();
+    return numPassed == probes.size();
 }
 
 }  // namespace mongo
