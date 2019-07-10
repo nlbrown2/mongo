@@ -20,6 +20,9 @@ env.CppUnitTest(
         'decimal128_bson_test.cpp',
         'overflow_arithmetic_test.cpp',
     ],
+    LIBDEPS=[
+        '$BUILD_DIR/mongo/db/service_context'
+    ]
 )
 
 # usdt_util_py = env.InstallAs(
@@ -66,9 +69,6 @@ usdt_probe_test_cpp = env.Program(
         '$BUILD_DIR/mongo/base',
         '$BUILD_DIR/mongo/unittest/unittest'
     ],
-    LIBDEPS=[
-        '$BUILD_DIR/mongo/db/service_context'
-    ]
 )
 usdt_probe_test_dict = {
     '@usdt_probe_test_python_interpreter@' : sys.executable.replace('\\', r'\\'),
