@@ -31,8 +31,6 @@
 
 #include "mongo/config.h"
 
-namespace mongo {
-
 #ifdef MONGO_CONFIG_USDT_ENABLED
 
 #if MONGO_CONFIG_USDT_PROVIDER == SDT
@@ -65,4 +63,4 @@ namespace mongo {
 
 #endif  // MONGO_CONFIG_USDT_ENABLED
 
-}  // namespace mongo
+namespace mongo {}  // namespace mongo
