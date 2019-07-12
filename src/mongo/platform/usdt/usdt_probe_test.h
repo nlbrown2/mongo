@@ -40,7 +40,7 @@ namespace mongo {
 
 enum class USDTProbeType { INT, STRING, STRUCT };
 
-std::ostream& operator<<(std::ostream& out, const USDTProbeType &type);
+std::ostream& operator<<(std::ostream& out, const USDTProbeType& type);
 
 class USDTProbeArg {
     std::vector<USDTProbeArg> _members;
@@ -78,7 +78,7 @@ public:
     static int getNextAsInt(std::stringstream&);
 };
 
-std::ostream& operator<<(std::ostream& out, const USDTProbeArg &arg);
+std::ostream& operator<<(std::ostream& out, const USDTProbeArg& arg);
 
 class USDTProbe {
     USDTProbeArg _args[12];
@@ -120,7 +120,7 @@ public:
     std::string toJSONStr() const;
 };
 
-std::ostream& operator<<(std::ostream& out, const USDTProbe &probe);
+std::ostream& operator<<(std::ostream& out, const USDTProbe& probe);
 
 class USDTProbeTest {
     int _fdRd;

@@ -38,8 +38,9 @@
 
 namespace mongo {
 
-std::ostream& operator<<(std::ostream& out, const USDTProbeType &type) {
-    return out << (type == USDTProbeType::INT ? "int" : (type == USDTProbeType::STRING ? "str" : "struct"));
+std::ostream& operator<<(std::ostream& out, const USDTProbeType& type) {
+    return out << (type == USDTProbeType::INT ? "int"
+                                              : (type == USDTProbeType::STRING ? "str" : "struct"));
 }
 
 std::string USDTProbeArg::getNextAsString(std::stringstream& in) {
@@ -99,7 +100,7 @@ std::string USDTProbeArg::toJSONStr() const {
     return ss.str();
 }
 
-std::ostream& operator<<(std::ostream& out, const USDTProbeArg &arg) {
+std::ostream& operator<<(std::ostream& out, const USDTProbeArg& arg) {
     return out << arg.toJSONStr();
 }
 
@@ -121,7 +122,7 @@ std::string USDTProbe::toJSONStr() const {
     return ss.str();
 }
 
-std::ostream& operator<<(std::ostream& out, const USDTProbe &probe) {
+std::ostream& operator<<(std::ostream& out, const USDTProbe& probe) {
     return out << probe.toJSONStr();
 }
 
