@@ -141,7 +141,7 @@ std::string readUpTo(int fdRd, int len) {
     return ss.str();
 }
 
-void USDTProbeTest::_writeJSONToPipe(const std::string &json) {
+void USDTProbeTest::_writeJSONToPipe(const std::string& json) {
     _setUpTest();
 
     std::stringstream ss;

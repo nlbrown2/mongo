@@ -118,7 +118,7 @@ class USDTProbeTest {
 
     void _initialize();
     void _setUpTest();
-    void _writeJSONToPipe(const std::string &json);
+    void _writeJSONToPipe(const std::string& json);
 
 public:
     USDTProbeTest(int fdRd, int fdWr) : _fdRd(fdRd), _fdWr(fdWr) {
@@ -131,17 +131,17 @@ public:
     static std::string toJSONStr(const std::vector<USDTProbe>& probes);
 };
 
-#define USDT_PROBE_TEST()                                               \
-    void testProbes(mongo::USDTProbeTest& tester);                      \
-    int main(int argc, char** argv) {                                   \
-        ASSERT_EQ(argc, 3);                                             \
-        int fdRd, fdWr;                                                 \
-        uassertStatusOK(mongo::NumberParser{}(argv[1], &fdRd));         \
-        uassertStatusOK(mongo::NumberParser{}(argv[2], &fdWr));         \
-        mongo::USDTProbeTest tester(fdRd, fdWr);                        \
-        testProbes(tester);                                             \
-        return 0;                                                       \
-    }                                                                   \
+#define USDT_PROBE_TEST()                                       \
+    void testProbes(mongo::USDTProbeTest& tester);              \
+    int main(int argc, char** argv) {                           \
+        ASSERT_EQ(argc, 3);                                     \
+        int fdRd, fdWr;                                         \
+        uassertStatusOK(mongo::NumberParser{}(argv[1], &fdRd)); \
+        uassertStatusOK(mongo::NumberParser{}(argv[2], &fdWr)); \
+        mongo::USDTProbeTest tester(fdRd, fdWr);                \
+        testProbes(tester);                                     \
+        return 0;                                               \
+    }                                                           \
     void testProbes(mongo::USDTProbeTest& tester)
 
 }  // namespace mongo
