@@ -60,10 +60,15 @@ usdt_args_test = env.Program(
         '$BUILD_DIR/mongo/unittest/unittest'
     ],
 )
+
+usdt_test_exes = [
+    usdt_args_test[0].name,
+]
+
 usdt_probe_test_dict = {
     '@usdt_probe_test_python_interpreter@' : sys.executable.replace('\\', r'\\'),
     '@usdt_probe_test_py@' : usdt_probe_test_py[0].name,
-    '@usdt_probe_tests@' : usdt_args_test[0].name, # TODO list of execs
+    '@usdt_probe_tests@' : ' '.join(usdt_test_exes)
 }
 
 usdt_probe_test_wrapper = env.Substfile(

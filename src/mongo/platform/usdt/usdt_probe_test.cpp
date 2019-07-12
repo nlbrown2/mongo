@@ -80,7 +80,7 @@ std::string USDTProbeArg::toJSONStr() {
     ss << (type == USDTProbeType::INT ? "int" : (type == USDTProbeType::STRING ? "str" : "struct"));
     ss << "\"";
     if (type == USDTProbeType::STRUCT) {
-        ss << ", \"values\":[";
+        ss << ", \"fields\":[";
         bool first = true;
         for (auto arg : _members) {
             if (first) {

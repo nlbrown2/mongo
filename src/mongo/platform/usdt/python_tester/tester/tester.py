@@ -5,8 +5,11 @@ from bcc import BPF, USDT
 from .util import STRING_TYPE
 from .generator import Probe, Arg, Generator
 
+PROBE_ARRAY_KEY = "probes"
+PID_KEY = 'pid'
+
 def load_json(reader):
-    """reads json text of the specified size from a named pipe with name writer and performs validation"""
+    """ parses the json it reads in from reader. Returns a list of generator.Probe objects or an int (if given a pid) """
     # first reads an integer that specifies the size of the JSON coming over the pipe
     line = str(reader.readline(), 'utf-8').strip()
     json_size = int(line)
@@ -20,15 +23,16 @@ def load_json(reader):
         json_text += read
 
     json_obj = json.loads(json_text)
-    if 'pid' in json_obj:
-        return int(json_obj["pid"])
-    return [Probe(p) for p in json_obj["probes"]]
+    # if given the PID body, return an int corresponding to that
+    if PID_KEY in json_obj:
+        return int(json_obj[PID_KEY])
+    return [Probe(p) for p in json_obj[PROBE_ARRAY_KEY]]
 
 def callback_gen(bpf_obj, probe, probe_hit_counts, output_arr):
     """ returns a function that can handle and validate the args passed to probe probe_name. Updates probe_hit_counts """
     def process_callback(cpu, data, size):
         """ on every event, this callback will trigger with new data. It will iterate over the specified args, validating each one """
-        del cpu, size #these are unused
+        del cpu, size
         value_string = ''
         event = bpf_obj[probe.name].event(data)
         for arg in probe.args:
@@ -38,7 +42,6 @@ def callback_gen(bpf_obj, probe, probe_hit_counts, output_arr):
         probe_hit_counts[probe.name] += 1
     return process_callback
 
-# create and enable USDT objects
 def attach_bpf(bpf_text, probes, pid, probe_hit_counts, output_arrays):
     """ creates usdt_probes and attaches them to a BPF object.
     Sets up BPF object callbacks. Returns the initalized BPF object"""
@@ -56,7 +59,7 @@ def stringify_arg(event, arg):
     """returns the value for the provided argument within the event as a stringified representation"""
     res = ''
     if arg.type == 'struct':
-        for field in arg.values:
+        for field in arg.fields:
             res += stringify_arg(event, field)
     else:
         actual = getattr(event, arg.output_arg_name)

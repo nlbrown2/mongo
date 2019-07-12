@@ -187,7 +187,15 @@ USDT_PROBE_TEST() {
                          .withIntMember()
                          .withMember(mongo::USDTProbeArg(mongo::USDTProbeType::STRUCT)
                                          .withStringMember(5)
-                                         .withIntMember()))};
+                                         .withIntMember())),
+        mongo::USDTProbe("multipleStruct",
+                         1,
+                         [](auto& res, int hit) -> void {
+                             ASSERT_EQ(mongo::USDTProbeArg::getNextAsInt(res), 25);
+                             ASSERT_EQ("hello", mongo::USDTProbeArg::getNextAsString(res));
+                         })
+            .withArg(mongo::USDTProbeArg(mongo::USDTProbeType::STRUCT).withIntMember())
+            .withArg(mongo::USDTProbeArg(mongo::USDTProbeType::STRUCT).withStringMember(6))};
 
     ASSERT(tester.runTest(structProbes, []() -> void {
         struct {
@@ -204,5 +212,12 @@ USDT_PROBE_TEST() {
             } inner;
         } n;
         MONGO_USDT(nestedStruct, &n);
+        struct {
+            int i = 25;
+        } justInt;
+        struct {
+            const char s[6] = "hello";
+        } justStr;
+        MONGO_USDT(multipleStruct, &justInt, &justStr);
     }));
 }
