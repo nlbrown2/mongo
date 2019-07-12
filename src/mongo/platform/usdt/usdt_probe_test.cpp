@@ -38,6 +38,10 @@
 
 namespace mongo {
 
+std::ostream& operator<<(std::ostream& out, const USDTProbeType &type) {
+    return out << (type == USDTProbeType::INT ? "int" : (type == USDTProbeType::STRING ? "str" : "struct"));
+}
+
 std::string USDTProbeArg::getNextAsString(std::stringstream& in) {
     std::stringstream ssOut;
     char c;
@@ -68,17 +72,14 @@ int USDTProbeArg::getNextAsInt(std::stringstream& in) {
     int num;
 
     in >> numStr;
-    uassertStatusOK(
-        mongo::NumberParser{}.allowTrailingText().skipWhitespace()(numStr.c_str(), &num));
+    uassertStatusOK(mongo::NumberParser::strToAny()(numStr.c_str(), &num));
 
     return num;
 }
 
-std::string USDTProbeArg::toJSONStr() {
+std::string USDTProbeArg::toJSONStr() const {
     std::stringstream ss;
-    ss << "{\"type\":\"";
-    ss << (type == USDTProbeType::INT ? "int" : (type == USDTProbeType::STRING ? "str" : "struct"));
-    ss << "\"";
+    ss << "{\"type\":\"" << type << "\"";
     if (type == USDTProbeType::STRUCT) {
         ss << ", \"fields\":[";
         bool first = true;
@@ -88,7 +89,7 @@ std::string USDTProbeArg::toJSONStr() {
             } else {
                 ss << ',';
             }
-            ss << arg.toJSONStr();
+            ss << arg;
         }
         ss << "]";
     } else if (type == USDTProbeType::STRING) {
@@ -98,7 +99,11 @@ std::string USDTProbeArg::toJSONStr() {
     return ss.str();
 }
 
-std::string USDTProbe::toJSONStr() {
+std::ostream& operator<<(std::ostream& out, const USDTProbeArg &arg) {
+    return out << arg.toJSONStr();
+}
+
+std::string USDTProbe::toJSONStr() const {
     std::stringstream ss;
     ss << "{\"name\":\"" << name << "\",";
     ss << "\"hits\":" << hits << ',';
@@ -110,10 +115,14 @@ std::string USDTProbe::toJSONStr() {
         } else {
             ss << ',';
         }
-        ss << _args[i].toJSONStr();
+        ss << _args[i];
     }
     ss << "]}";
     return ss.str();
+}
+
+std::ostream& operator<<(std::ostream& out, const USDTProbe &probe) {
+    return out << probe.toJSONStr();
 }
 
 std::string readLine(int fdRd, int maxLen = 1024) {
@@ -134,7 +143,7 @@ std::string readUpTo(int fdRd, int len) {
     std::stringstream ss;
     int count = 0;
     while (count < len) {
-        std::string s = readLine(fdRd);
+        std::string s = readLine(fdRd, len);
         count += 1 + s.length();
         ss << s << "\n";
     }
@@ -144,12 +153,12 @@ std::string readUpTo(int fdRd, int len) {
 void USDTProbeTest::_writeJSONToPipe(const std::string& json) {
     _setUpTest();
 
-    std::stringstream ss;
-    ss << json.size() << std::endl;
-    std::string sz = ss.str();
+    std::string sz = std::to_string(json.size());
 
     size_t bytesWritten = write(_fdWr, sz.c_str(), sz.size());
     ASSERT(bytesWritten == sz.size());
+    bytesWritten = write(_fdWr, "\n", 1);
+    ASSERT(bytesWritten == 1);
     bytesWritten = write(_fdWr, json.c_str(), json.size());
     ASSERT(bytesWritten == json.size());
 }
@@ -178,7 +187,7 @@ std::string USDTProbeTest::toJSONStr(const std::vector<USDTProbe>& probes) {
         } else {
             ss << ',';
         }
-        ss << probe.toJSONStr();
+        ss << probe;
     }
     ss << "]}";
     return ss.str();
@@ -201,14 +210,14 @@ bool USDTProbeTest::runTest(const std::vector<USDTProbe>& probes,
     int size;
     size_t numPassed = 0;
     for (auto probe : probes) {
+        std::cout << "Testing [" << probe.name << "]" << std::endl;
         line = readLine(_fdRd);
         ASSERT_EQ(line, probe.name);
 
         bool passed = false;
         for (int hit = 0; hit < probe.hits; hit++) {
             line = readLine(_fdRd);
-            uassertStatusOK(
-                mongo::NumberParser{}.allowTrailingText().skipWhitespace()(line.c_str(), &size));
+            uassertStatusOK(mongo::NumberParser::strToAny()(line.c_str(), &size));
             line = readUpTo(_fdRd, size);
             std::stringstream res(line);
             std::stringstream err;

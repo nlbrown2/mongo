@@ -58,7 +58,7 @@ USDT_PROBE_TEST() {
                              ASSERT_EQ(mongo::USDTProbeArg::getNextAsInt(res), 1);
                              ASSERT_EQ(mongo::USDTProbeArg::getNextAsInt(res), 2);
                          })
-            .withIntArg(2),
+            .withIntArgs(2),
         mongo::USDTProbe("probe12",
                          1,
                          [](auto& res, int hit) -> void {
@@ -66,12 +66,12 @@ USDT_PROBE_TEST() {
                                  ASSERT_EQ(mongo::USDTProbeArg::getNextAsInt(res), i);
                              }
                          })
-            .withIntArg(12),
+            .withIntArgs(12),
         mongo::USDTProbe("probe1223", 23, [](auto& res, int hit) -> void {
             for (int i = 12; i < 24; i++) {
                 ASSERT_EQ(mongo::USDTProbeArg::getNextAsInt(res), i + hit);
             }
-        }).withIntArg(12)};
+        }).withIntArgs(12)};
 
     ASSERT(tester.runTest(intProbes, []() -> void {
         MONGO_USDT(probe1, 42);
@@ -107,7 +107,7 @@ USDT_PROBE_TEST() {
         mongo::USDTProbe("failsMany", 1, [](auto& res, int hit) -> void {
             ASSERT_EQ(mongo::USDTProbeArg::getNextAsInt(res), 42);
             ASSERT_EQ(mongo::USDTProbeArg::getNextAsInt(res), 43);
-        }).withIntArg(2)};
+        }).withIntArgs(2)};
     ASSERT_FALSE(tester.runTest(failuresWithMany, []() -> void { MONGO_USDT(failsMany, 42, 42); }));
 
     // test STRING args
