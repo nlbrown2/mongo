@@ -122,3 +122,4 @@ def run(reader, writer):
 
         print("\n\n\n==================SUMMARY====================")
         print("SUCCEEDED: All iterations for probes were registered.")
+        bpf_obj.cleanup()
