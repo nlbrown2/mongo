@@ -73,7 +73,7 @@ def stringify_arg(event, arg):
 def expecting_more_probe_hits(probes, probe_hit_counts):
     """ determines if the testing program expects more probes to be hit or not """
     for probe in probes:
-        if probe.hits < probe_hit_counts[probe.name]:
+        if probe.hits > probe_hit_counts[probe.name]:
             return True
     return False
 
