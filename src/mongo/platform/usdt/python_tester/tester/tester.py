@@ -42,6 +42,12 @@ def callback_gen(bpf_obj, probe, probe_hit_counts, output_arr):
         probe_hit_counts[probe.name] += 1
     return process_callback
 
+def event_dropped_gen(probe):
+    """ returns a function to be called when a probe is dropped """
+    def event_dropped(arg):
+        print("WARNING: {} DROPPED.", probe.name)
+    return event_dropped
+
 def attach_bpf(bpf_text, probes, pid, probe_hit_counts, output_arrays):
     """ creates usdt_probes and attaches them to a BPF object.
     Sets up BPF object callbacks. Returns the initalized BPF object"""
@@ -51,7 +57,8 @@ def attach_bpf(bpf_text, probes, pid, probe_hit_counts, output_arrays):
 
     bpf = BPF(text=bpf_text, usdt_contexts=usdt_probes)
     for probe in probes:
-        bpf[probe.name].open_perf_buffer(callback_gen(bpf, probe, probe_hit_counts, output_arrays[probe.name]))
+        probeCallback = callback_gen(bpf, probe, probe_hit_counts, output_arrays[probe.name])
+        bpf[probe.name].open_perf_buffer(probeCallback, lost_cb=event_dropped_gen(probe))
 
     return bpf
 
