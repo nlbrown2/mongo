@@ -8228,6 +8228,15 @@ tasks:
   - func: "set up win mount script"
   - func: "shared scons cache pruning"
 
+- <<: *task_template
+  name: unittests_usdt
+  commands:
+  - func: "do setup"
+  - func: "run tests"
+    vars:
+      resmoke_args: --suites=unittests_usdt --storageEngine=wiredTiger
+      resmoke_jobs_max: 1
+
 #######################################
 #             Task Groups             #
 #######################################

@@ -33,8 +33,6 @@
 #include "mongo/unittest/unittest.h"
 #include "mongo/util/assert_util.h"
 
-// TODO test negative cases
-
 USDT_PROBE_TEST() {
     // dumb test
     ASSERT(tester.runTest(mongo::USDTProbe("aProbe", 15, [](auto& res, int hit) -> void {}),
@@ -212,6 +210,7 @@ USDT_PROBE_TEST() {
             } inner;
         } n;
         MONGO_USDT(nestedStruct, &n);
+
         struct {
             int i = 25;
         } justInt;
@@ -219,6 +218,12 @@ USDT_PROBE_TEST() {
             const char s[6] = "hello";
         } justStr;
         MONGO_USDT(multipleStruct, &justInt, &justStr);
+
+        // to avoid -Wunused-variable warnings
+        (void)s;
+        (void)n;
+        (void)justInt;
+        (void)justStr;
     }));
 
     mongo::USDTProbe multipleStringStruct("multi_string", 1, [](auto& res, int hit) -> void {
