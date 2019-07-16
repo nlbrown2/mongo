@@ -8,7 +8,7 @@ from tester import tester
 
 
 def main():
-    #pylint: disable=missing-docstring
+    """ parse command line args and run the tester """
     # parse command line args
     if len(sys.argv) < 3:
         print("Usage: " + sys.argv[0] + " <read fd> <write fd>")

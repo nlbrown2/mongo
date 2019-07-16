@@ -2,7 +2,7 @@
 
 import json
 from bcc import BPF, USDT
-from .util import STRING_TYPE
+from .util import STRING_TYPE, STRUCT_TYPE
 from .generator import Probe, Arg, Generator
 
 PROBE_ARRAY_KEY = "probes"
@@ -65,7 +65,7 @@ def attach_bpf(bpf_text, probes, pid, probe_hit_counts, output_arrays):
 def stringify_arg(event, arg):
     """returns the value for the provided argument within the event as a stringified representation"""
     res = ''
-    if arg.type == 'struct':
+    if arg.type == STRUCT_TYPE:
         for field in arg.fields:
             res += stringify_arg(event, field)
     else:
