@@ -91,11 +91,11 @@ class Arg:
                 # is determined, and then a bpf_probe_read_str is issued, reading the string from userspace once more
                 # See https://github.com/iovisor/bcc/issues/691 for updates on string builtin functions
                 result = """
-                \r\tconst char* user_str_{index} = {source};
-                \r\tbpf_probe_read_str(out.{target}, sizeof(out.{target}), user_str_{index});
+                \r\tconst char* {str_addr_name} = {source};
+                \r\tbpf_probe_read_str(out.{target}, sizeof(out.{target}), {str_addr_name});
                 """.format(source=source_struct_name + '.' + self.output_arg_name,
                         target=self.output_arg_name,
-                        index=self.index)
+                        str_addr_name=self.output_arg_name.replace('arg', 'addr'))
                 return result
             elif self.type == STRUCT_TYPE:
                 # add ourselves to the source struct name for our fields to read out of
@@ -107,25 +107,27 @@ class Arg:
             return '\r\tout.{target} = {source};\n'.format(target=self.output_arg_name, source=source_struct_name + '.' + self.output_arg_name)
         elif self.type == STRING_TYPE:
             assert self.depth == 0
+            # read the addr out of the USDT arg and read the C-string into our output struct
             return """
-            \r\tconst char* addr_{depth}_{arg_index} = NULL;
-            \r\tbpf_usdt_readarg({arg_num}, ctx, &addr_{depth}_{arg_index});
-            \r\tbpf_probe_read_str(&out.{out_member}, sizeof(out.{out_member}), addr_{depth}_{arg_index});
-            """.format(depth=self.depth, arg_num=self.index + 1, arg_index=self.index, out_member=self.output_arg_name)
+            \r\tconst char* {addr_name} = NULL;
+            \r\tbpf_usdt_readarg({arg_num}, ctx, &{addr_name});
+            \r\tbpf_probe_read_str(&out.{out_member}, sizeof(out.{out_member}), {addr_name});
+            """.format(arg_num=self.index + 1, addr_name=self.output_arg_name.replace('arg', 'addr'), out_member=self.output_arg_name)
         elif self.type == STRUCT_TYPE:
             assert self.depth == 0
             # read in the struct from the USDT arg pointer
+            struct_name = '{probe_name}_level_0_{index}_base'.format(probe_name=self.probe_name, index=self.index)
             result = """
-            \r\tstruct {probe_name}_level_0_{index} {probe_name}_level_0_{index}_base = {{}};
-            \r\tconst void* addr_0_{index} = NULL;
-            \r\tbpf_usdt_readarg({arg_num}, ctx, &addr_0_{index});
-            \r\tbpf_probe_read(&{probe_name}_level_0_{index}_base, sizeof({probe_name}_level_0_{index}_base), addr_0_{index});
-            """.format(probe_name=self.probe_name, index=self.index, arg_num=self.index + 1)
-            source_struct_name = '{probe_name}_level_0_{index}_base'.format(probe_name=self.probe_name, index=self.index)
+            \r\tstruct {probe_name}_level_0_{index} {struct_name} = {{}};
+            \r\tconst void* addr_{index} = NULL;
+            \r\tbpf_usdt_readarg({arg_num}, ctx, &addr_{index});
+            \r\tbpf_probe_read(&{struct_name}, sizeof({struct_name}), addr_{index});
+            """.format(probe_name=self.probe_name, index=self.index, struct_name=struct_name, arg_num=self.index + 1)
             for arg in self.fields:
-                result += arg.fill_output_struct(source_struct_name) + '\n'
+                result += arg.fill_output_struct(struct_name) + '\n'
             return result
         else:
+            # read the argument directly
             return '\r\tbpf_usdt_readarg({}, ctx, &out.{});\n'.format(self.index + 1, self.output_arg_name)
 
 class Generator:

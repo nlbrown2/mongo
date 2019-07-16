@@ -220,4 +220,24 @@ USDT_PROBE_TEST() {
         } justStr;
         MONGO_USDT(multipleStruct, &justInt, &justStr);
     }));
+
+    mongo::USDTProbe multipleStringStruct("multi_string",
+            1,
+            [](auto& res, int hit) -> void {
+                ASSERT_EQ(mongo::USDTProbeArg::getNextAsString(res), "string1");
+                ASSERT_EQ(mongo::USDTProbeArg::getNextAsString(res), "string2");
+                ASSERT_EQ(mongo::USDTProbeArg::getNextAsString(res), "string3");
+            });
+    multipleStringStruct.withArg(mongo::USDTProbeArg(mongo::USDTProbeType::STRUCT).withStringMember(8))
+    .withArg(mongo::USDTProbeArg(mongo::USDTProbeType::STRUCT).withStringMember(8).withStringMember(8));
+    ASSERT(tester.runTest(multipleStringStruct, []() -> void {
+                struct {
+                    char str1[8] = "string1";
+                } first;
+                struct {
+                    char str2[8] = "string2";
+                    char str3[8] = "string3";
+                } second;
+                MONGO_USDT(multi_string, &first, &second);
+                }));
 }
