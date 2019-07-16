@@ -23,14 +23,9 @@ py_pr = subprocess.Popen(args=[exec_py_name, str(py_rd), str(py_wr)], executable
 
 for test in test_list:
     exec_cpp_name = os.path.join(dn, test)
-    gdb = '/usr/bin/gdb'
-    print("args to pass: ", str(cpp_rd), str(cpp_wr))
     print("Running: {}".format(exec_cpp_name))
-    try:
-        cpp_pr = subprocess.Popen(args=[gdb, exec_cpp_name], executable=gdb, close_fds=False)
-        cpp_pr.wait()
-    except KeyboardInterrupt:
-        cpp_pr.kill()
+    cpp_pr = subprocess.Popen(args=[exec_cpp_name, str(cpp_rd), str(cpp_wr)], executable=exec_cpp_name, close_fds=False)
+    cpp_pr.wait()
 
 
 # clean up py child & pipes
