@@ -66,19 +66,19 @@ class Arg:
             if member.type == STRUCT_TYPE:
                 result += member.before_output_gen()
 
-        result += '\rstruct {probe_name}_level_{depth}_{index} {{\n'.format(probe_name=self.probe_name, depth=self.depth, index=self.index)
+        result += 'struct {probe_name}_level_{depth}_{index} {{\n'.format(probe_name=self.probe_name, depth=self.depth, index=self.index)
         for member in self.fields:
-            result += '\r\t' + member.get_c_name() + ';\n'
+            result += '\t' + member.get_c_name() + ';\n'
         result += '};\n'
         return result
 
     def get_output_struct_def(self):
         """ returns what members in the output struct this arg is responsible for. """
         if self.type != STRUCT_TYPE:
-            return '\r\t' + self.get_c_name() + ';\n'
+            return '\t' + self.get_c_name() + ';\n'
         result = ''
         for arg in self.fields:
-            result += '\r\t' + arg.get_output_struct_def()
+            result += arg.get_output_struct_def()
         return result
 
     def fill_output_struct(self, source_struct_name=None):
@@ -91,9 +91,9 @@ class Arg:
                 # is determined, and then a bpf_probe_read_str is issued, reading the string from userspace once more
                 # See https://github.com/iovisor/bcc/issues/691 for updates on string builtin functions
                 result = """
-                \r\tconst char* {str_addr_name} = {source};
-                \r\tbpf_probe_read_str(out.{target}, sizeof(out.{target}), {str_addr_name});
-                """.format(source=source_struct_name + '.' + self.output_arg_name,
+\tconst char* {str_addr_name} = {source};
+\tbpf_probe_read_str(out.{target}, sizeof(out.{target}), {str_addr_name});
+""".format(source=source_struct_name + '.' + self.output_arg_name,
                         target=self.output_arg_name,
                         str_addr_name=self.output_arg_name.replace('arg', 'addr'))
                 return result
@@ -104,31 +104,31 @@ class Arg:
                 for arg in self.fields:
                     result += arg.fill_output_struct(source_struct_name) + '\n'
                 return result
-            return '\r\tout.{target} = {source};\n'.format(target=self.output_arg_name, source=source_struct_name + '.' + self.output_arg_name)
+            return '\tout.{target} = {source}; //here1\n'.format(target=self.output_arg_name, source=source_struct_name + '.' + self.output_arg_name)
         elif self.type == STRING_TYPE:
             assert self.depth == 0
             # read the addr out of the USDT arg and read the C-string into our output struct
             return """
-            \r\tconst char* {addr_name} = NULL;
-            \r\tbpf_usdt_readarg({arg_num}, ctx, &{addr_name});
-            \r\tbpf_probe_read_str(&out.{out_member}, sizeof(out.{out_member}), {addr_name});
-            """.format(arg_num=self.index + 1, addr_name=self.output_arg_name.replace('arg', 'addr'), out_member=self.output_arg_name)
+\tconst char* {addr_name} = NULL;
+\tbpf_usdt_readarg({arg_num}, ctx, &{addr_name});
+\tbpf_probe_read_str(&out.{out_member}, sizeof(out.{out_member}), {addr_name});
+""".format(arg_num=self.index + 1, addr_name=self.output_arg_name.replace('arg', 'addr'), out_member=self.output_arg_name)
         elif self.type == STRUCT_TYPE:
             assert self.depth == 0
             # read in the struct from the USDT arg pointer
             struct_name = '{probe_name}_level_0_{index}_base'.format(probe_name=self.probe_name, index=self.index)
             result = """
-            \r\tstruct {probe_name}_level_0_{index} {struct_name} = {{}};
-            \r\tconst void* addr_{index} = NULL;
-            \r\tbpf_usdt_readarg({arg_num}, ctx, &addr_{index});
-            \r\tbpf_probe_read(&{struct_name}, sizeof({struct_name}), addr_{index});
-            """.format(probe_name=self.probe_name, index=self.index, struct_name=struct_name, arg_num=self.index + 1)
+\tstruct {probe_name}_level_0_{index} {struct_name} = {{}};
+\tconst void* addr_{index} = NULL;
+\tbpf_usdt_readarg({arg_num}, ctx, &addr_{index});
+\tbpf_probe_read(&{struct_name}, sizeof({struct_name}), addr_{index});
+""".format(probe_name=self.probe_name, index=self.index, struct_name=struct_name, arg_num=self.index + 1)
             for arg in self.fields:
                 result += arg.fill_output_struct(struct_name) + '\n'
             return result
         else:
             # read the argument directly
-            return '\r\tbpf_usdt_readarg({}, ctx, &out.{});\n'.format(self.index + 1, self.output_arg_name)
+            return '\tbpf_usdt_readarg({}, ctx, &out.{});\n'.format(self.index + 1, self.output_arg_name)
 
 class Generator:
     """ Responsible for orchestrating the generation of code for each probe that gets added to it """
@@ -151,11 +151,11 @@ class Generator:
         self.c_prog += "\nstruct {}_output {{\n".format(probe.name)
         for  arg in probe.args:
             self.c_prog += arg.get_output_struct_def()
-        self.c_prog += '\r};\n\n'
+        self.c_prog += '};\n\n'
 
-        self.c_prog += '\rint {}(struct pt_regs *ctx) {{\n'.format(probe.function_name)
-        self.c_prog += '\r\tstruct {}_output out = {{}};\n'.format(probe.name)
+        self.c_prog += 'int {}(struct pt_regs *ctx) {{\n'.format(probe.function_name)
+        self.c_prog += '\tstruct {}_output out = {{}};\n'.format(probe.name)
         for arg in probe.args:
             self.c_prog += arg.fill_output_struct()
-        self.c_prog += '\r\t{}.perf_submit(ctx, &out, sizeof(out));\n'.format(probe.name)
-        self.c_prog += '\r\treturn 0;\n}\n'
+        self.c_prog += '\t{}.perf_submit(ctx, &out, sizeof(out));\n'.format(probe.name)
+        self.c_prog += '\treturn 0;\n}\n'

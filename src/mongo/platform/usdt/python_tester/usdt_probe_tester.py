@@ -21,8 +21,8 @@ def main():
     try:
         tester.run(reader, writer)
     finally:
-        writer.close();
-        reader.close();
+        writer.close()
+        reader.close()
 
 if __name__ == '__main__':
     main()

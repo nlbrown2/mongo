@@ -44,7 +44,7 @@ def callback_gen(bpf_obj, probe, probe_hit_counts, output_arr):
 
 def event_dropped_gen(probe):
     """ returns a function to be called when a probe is dropped """
-    def event_dropped(arg):
+    def event_dropped(_):
         print("WARNING: {} DROPPED.", probe.name)
     return event_dropped
 
