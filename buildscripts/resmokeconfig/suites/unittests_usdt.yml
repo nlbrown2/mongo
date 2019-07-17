@@ -2,7 +2,7 @@ test_kind: cpp_unit_test
   
 selector:
   roots:
-  - build/**/mongo/platform/usdt/pywrapper.py
+  - build/opt/mongo/platform/usdt/usdt_unittest.py
 
 executor:
   config: {}

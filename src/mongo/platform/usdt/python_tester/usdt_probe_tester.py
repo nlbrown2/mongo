@@ -7,7 +7,7 @@ from tester import tester
 
 if os.getuid() != 0:
     print("USDT tests must be run as sudo.")
-    exit(0)
+    exit(1)
 
 def main():
     """ parse command line args and run the tester """

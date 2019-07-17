@@ -73,7 +73,7 @@ usdt_probe_test_dict = {
 }
 
 usdt_probe_test_wrapper = env.Substfile(
-    'usdt/pywrapper.py.in',
+    'usdt/usdt_unittest.py.in',
     SUBST_DICT=usdt_probe_test_dict,
 )
 env.Depends(usdt_probe_test_wrapper, [usdt_args_test, usdt_probe_test_py])
