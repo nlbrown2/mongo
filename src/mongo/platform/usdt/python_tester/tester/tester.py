@@ -89,6 +89,7 @@ def run(reader, writer):
     pid = -1
     while True:
         writer.write(b'>')
+        writer.flush()
         probes = load_json(reader)
         if not probes:
             print("All tests have run\n")
@@ -110,6 +111,7 @@ def run(reader, writer):
 
         # tell unittest driver that we have finished attaching our probes
         writer.write(b'>')
+        writer.flush()
 
         while expecting_more_probe_hits(probes, probe_hit_counts):
             bpf_obj.perf_buffer_poll() # failing tests will eventually time out

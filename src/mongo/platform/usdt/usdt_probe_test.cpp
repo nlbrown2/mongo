@@ -165,10 +165,22 @@ void USDTProbeTest::_writeJSONToPipe(const std::string& json) {
 }
 
 // provide python script with this process' pid
-void USDTProbeTest::_initialize() {
+void USDTProbeTest::_initialize(char* fifoRd, char* fifoWr) {
+    _fdWr = open(fifoWr, O_WRONLY);
+    ASSERT(_fdWr > 0);
+    _fdRd = open(fifoRd, O_RDONLY);
+    if (_fdRd < 0) close(_fdWr);
+    ASSERT(_fdRd > 0);
+
     std::stringstream ss;
     ss << "{\"pid\":" << getpid() << '}';
     _writeJSONToPipe(ss.str());
+}
+
+void USDTProbeTest::_destroy() {
+    ASSERT(write(_fdWr, "0", 1) == 1);
+    close(_fdRd);
+    close(_fdWr);
 }
 
 // handshake with python script prior to each test

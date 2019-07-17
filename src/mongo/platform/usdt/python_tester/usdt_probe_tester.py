@@ -16,11 +16,13 @@ def main():
         print("Usage: " + sys.argv[0] + " <read fd> <write fd>")
         exit(1)
 
-    read_fd = int(sys.argv[1])
-    write_fd = int(sys.argv[2])
-    writer = os.fdopen(write_fd, "wb", 0)
-    reader = os.fdopen(read_fd, "rb", 0)
-    tester.run(reader, writer)
+    reader = open(sys.argv[2], "rb")
+    writer = open(sys.argv[1], "wb")
+    try:
+        tester.run(reader, writer)
+    finally:
+        writer.close();
+        reader.close();
 
 if __name__ == '__main__':
     main()

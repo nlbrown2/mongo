@@ -1,0 +1,8 @@
+test_kind: cpp_unit_test
+  
+selector:
+  roots:
+  - build/opt/mongo/platform/usdt/pywrapper.py
+
+executor:
+  config: {}

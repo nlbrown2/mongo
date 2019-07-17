@@ -3,48 +3,71 @@
 import os
 import subprocess
 import sys
+import tempfile
+import time
 
-# verify bcc is installed
+tmp_dirname = "@usdt_tmp_dirname@"
+tmp_dirname = os.path.join(os.getcwd(), tmp_dirname)
+print("Temporary directory: {}".format(tmp_dirname))
+
+# verify bcc is installed & create tmp dir
 try:
     import bcc
+    os.mkdir(tmp_dirname)
 except ImportError:
     print("BCC module not present, USDT tests cannot be run.")
     exit(0)
-
-# create pipes for subprocesses to communicate
-cpp_rd, py_wr = os.pipe()
-py_rd, cpp_wr = os.pipe()
-
-os.set_inheritable(cpp_rd, True)
-os.set_inheritable(cpp_wr, True)
-os.set_inheritable(py_rd, True)
-os.set_inheritable(py_wr, True)
-
-# set up python child
-rp = os.path.realpath(__file__)
-dn = os.path.dirname(rp)
-exec_py_name = os.path.join(dn, 'python_tester/@usdt_probe_test_py@')
-py_interpreter = '@usdt_probe_test_python_interpreter@'
-exec_py_name = "sudo {} {} {} {}".format(py_interpreter, exec_py_name, str(py_rd), str(py_wr))
-
-print("Running: {}".format(exec_py_name))
-py_pr = subprocess.Popen(args=exec_py_name, shell=True, close_fds=False)
+except FileExistsError:
+    print("File exists.")
+except OSError:
+    print("Failed to create a temporary directory for named pipes.")
+    exit(1)
 
 try:
-    # run tests
-    test_list = '@usdt_probe_tests@'.split()
-    for test in test_list:
-        exec_cpp_name = os.path.join(dn, test)
-        print("Running: {}".format(exec_cpp_name))
-        cpp_pr = subprocess.Popen(args=[exec_cpp_name, str(cpp_rd), str(cpp_wr)], executable=exec_cpp_name, close_fds=False)
-        cpp_pr.wait()
+    # create named pipes for subprocesses to communicate
+    try:
+        cpp_wr_fifo_name = os.path.join(tmp_dirname, "cpp_wr_fifo")
+        os.mkfifo(cpp_wr_fifo_name)
+    except OSError as os:
+        if (oe.errno != EEXIST):
+            print("Failed to create named pipe.")
+            exit(1)
+
+    py_wr_fifo_name = os.path.join(tmp_dirname, "py_wr_fifo")
+    os.mkfifo(py_wr_fifo_name)
+
+    # set up python child
+    rp = os.path.realpath(__file__)
+    dn = os.path.dirname(rp)
+    exec_py_name = os.path.join(dn, 'python_tester/@usdt_probe_test_py@')
+    py_interpreter = '@usdt_probe_test_python_interpreter@'
+    exec_py_name = "sudo {} {} {} {}".format(py_interpreter, exec_py_name, py_wr_fifo_name, cpp_wr_fifo_name)
+
+    print("Running: {}".format(exec_py_name))
+    py_pr = subprocess.Popen(args=exec_py_name, shell=True, close_fds=False)
+    try:
+        # run tests
+        test_list = '@usdt_probe_tests@'.split()
+        for test in test_list:
+            exec_cpp_name = os.path.join(dn, test)
+            print("Running: {}".format(exec_cpp_name))
+            cpp_pr = subprocess.Popen(args=[exec_cpp_name, py_wr_fifo_name, cpp_wr_fifo_name], executable=exec_cpp_name, close_fds=False)
+            cpp_pr.wait()
+    finally:
+        # need to be sudo to kill py child
+        try:
+            subprocess.check_call(["sudo", "kill", str(py_pr.pid)])
+        except subprocess.CalledProcessError:
+            pass
 
 finally:
-    # clean up py child & pipes
-    py_pr.kill()
-    os.close(cpp_wr)
-    os.close(cpp_rd)
-    os.close(py_wr)
-    os.close(py_rd)
+    # clean up pipes
+    try:
+        os.remove(cpp_wr_fifo_name)
+    finally:
+        try:
+            os.remove(py_wr_fifo_name)
+        finally:
+            os.rmdir(tmp_dirname)
 
 print("Done.")

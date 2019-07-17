@@ -68,7 +68,8 @@ usdt_test_exes = [
 usdt_probe_test_dict = {
     '@usdt_probe_test_python_interpreter@' : '/usr/bin/python3',
     '@usdt_probe_test_py@' : usdt_probe_test_py[0].name,
-    '@usdt_probe_tests@' : ' '.join(usdt_test_exes)
+    '@usdt_probe_tests@' : ' '.join(usdt_test_exes),
+    '@usdt_tmp_dirname@': 'usdt_tmp'
 }
 
 usdt_probe_test_wrapper = env.Substfile(
