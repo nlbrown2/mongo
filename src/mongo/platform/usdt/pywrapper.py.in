@@ -23,6 +23,7 @@ except OSError:
     print("Failed to create a temporary directory for named pipes.")
     exit(1)
 
+all_passed = True
 try:
     # create named pipes for subprocesses to communicate
     try:
@@ -52,8 +53,11 @@ try:
             exec_cpp_name = os.path.join(dn, test)
             print("Running: {}".format(exec_cpp_name))
             cpp_pr = subprocess.Popen(args=[exec_cpp_name, py_wr_fifo_name, cpp_wr_fifo_name], executable=exec_cpp_name, close_fds=False)
-            cpp_pr.wait()
+            if cpp_pr.wait():
+                all_passed = False
     finally:
+        if subprocess.poll():
+            all_passed = False # the python process has already exited, which is an error
         # need to be sudo to kill py child
         try:
             subprocess.check_call(["sudo", "kill", str(py_pr.pid)])
@@ -70,4 +74,5 @@ finally:
         finally:
             os.rmdir(tmp_dirname)
 
-print("Done.")
+if not all_passed:
+    exit(1)
