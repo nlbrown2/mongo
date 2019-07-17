@@ -56,7 +56,7 @@ try:
             if cpp_pr.wait():
                 all_passed = False
     finally:
-        if subprocess.poll():
+        if py_pr.poll():
             all_passed = False # the python process has already exited, which is an error
         # need to be sudo to kill py child
         try:
