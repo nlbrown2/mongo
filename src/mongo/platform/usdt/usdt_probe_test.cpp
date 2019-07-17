@@ -169,7 +169,8 @@ void USDTProbeTest::_initialize(char* fifoRd, char* fifoWr) {
     _fdWr = open(fifoWr, O_WRONLY);
     ASSERT(_fdWr > 0);
     _fdRd = open(fifoRd, O_RDONLY);
-    if (_fdRd < 0) close(_fdWr);
+    if (_fdRd < 0)
+        close(_fdWr);
     ASSERT(_fdRd > 0);
 
     std::stringstream ss;

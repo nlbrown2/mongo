@@ -146,14 +146,14 @@ public:
     static std::string toJSONStr(const std::vector<USDTProbe>& probes);
 };
 
-#define USDT_PROBE_TEST()                                         \
-    void testProbes(mongo::USDTProbeTest& tester);                \
-    int main(int argc, char** argv) {                             \
-        ASSERT_EQ(argc, 3);                                       \
-        mongo::USDTProbeTest tester(argv[1], argv[2]);            \
-        testProbes(tester);                                       \
-        return 0;                                                 \
-    }                                                             \
+#define USDT_PROBE_TEST()                              \
+    void testProbes(mongo::USDTProbeTest& tester);     \
+    int main(int argc, char** argv) {                  \
+        ASSERT_EQ(argc, 3);                            \
+        mongo::USDTProbeTest tester(argv[1], argv[2]); \
+        testProbes(tester);                            \
+        return 0;                                      \
+    }                                                  \
     void testProbes(mongo::USDTProbeTest& tester)
 
 }  // namespace mongo
