@@ -2,6 +2,7 @@
 import os
 import subprocess
 import sys
+print("Running with", sys.executable)
 import tempfile
 import time
 
@@ -48,7 +49,7 @@ def main():
         dn = os.path.dirname(rp)
         exec_py_name = os.path.join(dn, 'python_tester/@usdt_probe_test_py@')
         py_interpreter = '@usdt_probe_test_python_interpreter@'
-        exec_py_name = "sudo {} {} {} {}".format(py_interpreter, exec_py_name, py_wr_fifo_name, cpp_wr_fifo_name)
+        exec_py_name = "sudo {} {} {} {}".format(sys.executable, exec_py_name, py_wr_fifo_name, cpp_wr_fifo_name)
 
         # run tests
         test_list = '@usdt_probe_tests@'.split()
