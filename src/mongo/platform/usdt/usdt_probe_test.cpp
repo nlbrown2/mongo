@@ -179,6 +179,7 @@ void USDTProbeTest::_initialize(char* fifoRd, char* fifoWr) {
 }
 
 void USDTProbeTest::_destroy() {
+    _setUpTest();
     ASSERT(write(_fdWr, "0", 1) == 1);
     close(_fdRd);
     close(_fdWr);
@@ -188,7 +189,8 @@ void USDTProbeTest::_destroy() {
 void USDTProbeTest::_setUpTest() {
     char ack;
     size_t bytesRead = read(_fdRd, &ack, 1);
-    ASSERT(bytesRead == 1 && ack == '>');
+    ASSERT_EQ(bytesRead, static_cast<size_t>(1));
+    ASSERT_EQ(ack, '>');
 }
 
 std::string USDTProbeTest::toJSONStr(const std::vector<USDTProbe>& probes) {

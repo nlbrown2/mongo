@@ -16,13 +16,18 @@ def main():
         print("Usage: " + sys.argv[0] + " <read fd> <write fd>")
         exit(1)
 
-    reader = open(sys.argv[2], "rb")
-    writer = open(sys.argv[1], "wb")
+    reader = open(sys.argv[2], "rb", 0)
+    writer = open(sys.argv[1], "wb", 0)
+    test_passes = False
     try:
         tester.run(reader, writer)
+        test_passes = True
     finally:
         writer.close()
         reader.close()
+
+    if not test_passes:
+        exit(1)
 
 if __name__ == '__main__':
     main()

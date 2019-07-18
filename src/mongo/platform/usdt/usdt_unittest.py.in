@@ -1,78 +1,101 @@
 #!/usr/bin/python3
-
 import os
 import subprocess
 import sys
 import tempfile
 import time
 
-tmp_dirname = "@usdt_tmp_dirname@"
-tmp_dirname = os.path.join(os.getcwd(), tmp_dirname)
-print("Temporary directory: {}".format(tmp_dirname))
-
-# verify bcc is installed & create tmp dir
+# verify bcc is installed
 try:
     import bcc
-    os.mkdir(tmp_dirname)
 except ImportError:
     print("BCC module not present, USDT tests cannot be run.")
     exit(0)
-except FileExistsError:
-    print("File exists.")
-except OSError:
-    print("Failed to create a temporary directory for named pipes.")
-    exit(1)
 
-all_passed = True
-try:
-    # create named pipes for subprocesses to communicate
+def failed_process(retStatus):
+    return os.WIFSIGNALED(retStatus) or (os.WIFEXITED(retStatus) and os.WEXITSTATUS(retStatus))
+
+def main():
+    failed_exes = []
     try:
-        cpp_wr_fifo_name = os.path.join(tmp_dirname, "cpp_wr_fifo")
-        os.mkfifo(cpp_wr_fifo_name)
-    except OSError as os:
-        if (oe.errno != EEXIST):
-            print("Failed to create named pipe.")
+        try:
+            # create temp directory
+            tmp_dirname = "@usdt_tmp_dirname@"
+            tmp_dirname = os.path.join(os.getcwd(), tmp_dirname)
+            print("Temporary directory: {}".format(tmp_dirname))
+
+            os.mkdir(tmp_dirname)
+        except FileExistsError:
+            print("File exists.")
+        except OSError:
+            print("Failed to create a temporary directory for named pipes.")
             exit(1)
 
-    py_wr_fifo_name = os.path.join(tmp_dirname, "py_wr_fifo")
-    os.mkfifo(py_wr_fifo_name)
+        # create named pipes for subprocesses to communicate
+        try:
+            cpp_wr_fifo_name = os.path.join(tmp_dirname, "cpp_wr_fifo")
+            os.mkfifo(cpp_wr_fifo_name)
+        except OSError as ose:
+            if (ose.errno != EEXIST):
+                print("Failed to create named pipe.")
+                exit(1)
 
-    # set up python child
-    rp = os.path.realpath(__file__)
-    dn = os.path.dirname(rp)
-    exec_py_name = os.path.join(dn, 'python_tester/@usdt_probe_test_py@')
-    py_interpreter = '@usdt_probe_test_python_interpreter@'
-    exec_py_name = "sudo {} {} {} {}".format(py_interpreter, exec_py_name, py_wr_fifo_name, cpp_wr_fifo_name)
+        py_wr_fifo_name = os.path.join(tmp_dirname, "py_wr_fifo")
+        os.mkfifo(py_wr_fifo_name)
 
-    print("Running: {}".format(exec_py_name))
-    py_pr = subprocess.Popen(args=exec_py_name, shell=True, close_fds=False)
-    try:
+        # set up python child
+        rp = os.path.realpath(__file__)
+        dn = os.path.dirname(rp)
+        exec_py_name = os.path.join(dn, 'python_tester/@usdt_probe_test_py@')
+        py_interpreter = '@usdt_probe_test_python_interpreter@'
+        exec_py_name = "sudo {} {} {} {}".format(py_interpreter, exec_py_name, py_wr_fifo_name, cpp_wr_fifo_name)
+
         # run tests
         test_list = '@usdt_probe_tests@'.split()
         for test in test_list:
+            # launch python executable
+            print("Running: {}".format(exec_py_name))
+            exec_py_list = exec_py_name.split()
+            py_pr = subprocess.Popen(args=exec_py_list, executable=exec_py_list[0], close_fds=False)
+
+            # launch C++ executable
             exec_cpp_name = os.path.join(dn, test)
             print("Running: {}".format(exec_cpp_name))
             cpp_pr = subprocess.Popen(args=[exec_cpp_name, py_wr_fifo_name, cpp_wr_fifo_name], executable=exec_cpp_name, close_fds=False)
-            if cpp_pr.wait():
-                all_passed = False
-    finally:
-        if py_pr.poll():
-            all_passed = False # the python process has already exited, which is an error
-        # need to be sudo to kill py child
-        try:
-            subprocess.check_call(["sudo", "kill", str(py_pr.pid)])
-        except subprocess.CalledProcessError:
-            pass
 
-finally:
-    # clean up pipes
-    try:
-        os.remove(cpp_wr_fifo_name)
+            (pid, retStatus) = os.wait()
+            if failed_process(retStatus):
+                failed_exes.append(test)
+                if pid == py_pr.pid:
+                    cpp_pr.kill()
+                elif pid == cpp_pr.pid:
+                    subprocess.check_call(args="sudo kill {}".format(py_pr.pid).split(), executable="sudo")
+                else:
+                    sys.stderr.write("Unknown PID: {}. Exiting.".format(pid))
+                    # kill both
+                    cpp_pr.kill()
+                    subprocess.check_call(args="sudo kill {}".format(py_pr.pid).split(), executable="sudo")
+                    exit(1)
+                os.wait() # prepare for next test. No need to check return code: This process killed it.
+            else:
+                (_, retStatus) = os.wait()
+                if failed_process(retStatus):
+                    failed_exes.append(test)
     finally:
+        # clean up pipes
         try:
-            os.remove(py_wr_fifo_name)
+            os.remove(cpp_wr_fifo_name)
         finally:
-            os.rmdir(tmp_dirname)
+            try:
+                os.remove(py_wr_fifo_name)
+            finally:
+                os.rmdir(tmp_dirname)
 
-if not all_passed:
-    exit(1)
+    if len(failed_exes):
+        print(failed_exes, " FAILED")
+        exit(1)
+    else:
+        print("ALL TESTS PASSED")
+
+if __name__ == '__main__':
+    main()
