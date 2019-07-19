@@ -246,4 +246,33 @@ USDT_PROBE_TEST() {
         } second;
         MONGO_USDT(multi_string, &first, &second);
     }));
+
+    // Pointer test
+    int throwaway = 5;
+    void* ptr = &throwaway;
+    ASSERT(tester.runTest(mongo::USDTProbe("ptrProbe",
+                                           1,
+                                           [ptr](auto& res, int hit) -> void {
+                                               void* result =
+                                                   mongo::USDTProbeArg::getNextAsPtr(res);
+                                               ASSERT_EQ(result, ptr);
+                                           })
+                              .withPtrArg(),
+                          [ptr]() -> void { MONGO_USDT(ptrProbe, ptr); }));
+
+    ASSERT(tester.runTest(
+        mongo::USDTProbe("ptrStruct",
+                         1,
+                         [ptr](auto& res, int hit) -> void {
+                             ASSERT_EQ(mongo::USDTProbeArg::getNextAsPtr(res), ptr);
+                         })
+            .withArg(mongo::USDTProbeArg(mongo::USDTProbeType::STRUCT)
+                         .withMember(mongo::USDTProbeArg(mongo::USDTProbeType::POINTER))),
+        [ptr]() -> void {
+            struct {
+                void* pointer;
+            } tmp;
+            tmp.pointer = ptr;
+            MONGO_USDT(ptrStruct, &tmp);
+        }));
 }

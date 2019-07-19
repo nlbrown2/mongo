@@ -4,3 +4,4 @@ STRUCT_TYPE = "struct"
 PROBE_NAME_KEY = "name"
 PROBE_ARGS_KEY = "args"
 ARG_TYPE_KEY = "type"
+POINTER_TYPE = 'ptr'

@@ -39,8 +39,21 @@
 namespace mongo {
 
 std::ostream& operator<<(std::ostream& out, const USDTProbeType& type) {
-    return out << (type == USDTProbeType::INT ? "int"
-                                              : (type == USDTProbeType::STRING ? "str" : "struct"));
+    switch (type) {
+        case USDTProbeType::INT:
+            out << "int";
+            break;
+        case USDTProbeType::STRING:
+            out << "str";
+            break;
+        case USDTProbeType::STRUCT:
+            out << "struct";
+            break;
+        case USDTProbeType::POINTER:
+            out << "ptr";
+            break;
+    }
+    return out;
 }
 
 std::string USDTProbeArg::getNextAsString(std::stringstream& in) {
@@ -76,6 +89,12 @@ int USDTProbeArg::getNextAsInt(std::stringstream& in) {
     uassertStatusOK(mongo::NumberParser::strToAny()(numStr.c_str(), &num));
 
     return num;
+}
+
+void* USDTProbeArg::getNextAsPtr(std::stringstream& in) {
+    void* res;
+    ASSERT(in >> std::hex >> res);
+    return res;
 }
 
 std::string USDTProbeArg::toJSONStr() const {

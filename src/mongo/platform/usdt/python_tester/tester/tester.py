@@ -2,7 +2,7 @@
 
 import json
 from bcc import BPF, USDT
-from .util import STRING_TYPE, STRUCT_TYPE
+from .util import STRING_TYPE, STRUCT_TYPE, POINTER_TYPE
 from .generator import Probe, Arg, Generator
 
 PROBE_ARRAY_KEY = "probes"
@@ -68,6 +68,8 @@ def stringify_arg(event, arg):
     if arg.type == STRUCT_TYPE:
         for field in arg.fields:
             res += stringify_arg(event, field)
+    elif arg.type == POINTER_TYPE:
+        res += hex(getattr(event, arg.output_arg_name))
     else:
         actual = getattr(event, arg.output_arg_name)
         if arg.type == STRING_TYPE:

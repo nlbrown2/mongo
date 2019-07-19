@@ -38,7 +38,7 @@
 
 namespace mongo {
 
-enum class USDTProbeType { INT, STRING, STRUCT };
+enum class USDTProbeType { INT, STRING, STRUCT, POINTER };
 
 std::ostream& operator<<(std::ostream& out, const USDTProbeType& type);
 
@@ -76,6 +76,7 @@ public:
 
     static std::string getNextAsString(std::stringstream&);
     static int getNextAsInt(std::stringstream&);
+    static void* getNextAsPtr(std::stringstream& ss);
 };
 
 std::ostream& operator<<(std::ostream& out, const USDTProbeArg& arg);
@@ -110,6 +111,10 @@ public:
             withIntArg();
         }
         return *this;
+    }
+
+    USDTProbe& withPtrArg() {
+        return withArg(USDTProbeArg(USDTProbeType::POINTER));
     }
 
     USDTProbe& withStringArg(int length) {

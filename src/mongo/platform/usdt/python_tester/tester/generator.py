@@ -1,5 +1,5 @@
 """ module that can generate c-style eBPF programs given a list of probes to attach to and their arguments """
-from .util import STRING_TYPE, STRUCT_TYPE, PROBE_NAME_KEY, PROBE_ARGS_KEY, ARG_TYPE_KEY
+from .util import STRING_TYPE, STRUCT_TYPE, PROBE_NAME_KEY, PROBE_ARGS_KEY, ARG_TYPE_KEY, POINTER_TYPE
 
 PROBE_HIT_KEY = "hits"
 ARG_STR_LEN_KEY = "length"
@@ -25,7 +25,7 @@ class Arg:
         assert isinstance(arg_dict, dict)
 
         self.type = arg_dict[ARG_TYPE_KEY]
-        assert self.type in (STRING_TYPE, STRUCT_TYPE, 'int', 'long')
+        assert self.type in (STRING_TYPE, STRUCT_TYPE, 'int', POINTER_TYPE)
 
         self.probe_name = probe_name
         assert isinstance(self.probe_name, str)
@@ -53,6 +53,8 @@ class Arg:
             return 'char {arg_name}[{length}]'.format(arg_name=self.output_arg_name, length=self.length)
         elif self.type == STRUCT_TYPE:
             return 'struct {probe_name}_level_{depth}_{index} {arg_name}'.format(probe_name=self.probe_name, depth=self.depth, arg_name=self.output_arg_name, index=self.index)
+        elif self.type == POINTER_TYPE:
+            return 'void* {arg_name}'.format(arg_name=self.output_arg_name)
         else:
             return '{type_} {arg_name}'.format(type_=self.type, arg_name=self.output_arg_name)
 
@@ -104,7 +106,7 @@ class Arg:
                 for arg in self.fields:
                     result += arg.fill_output_struct(source_struct_name) + '\n'
                 return result
-            return '\tout.{target} = {source}; //here1\n'.format(target=self.output_arg_name, source=source_struct_name + '.' + self.output_arg_name)
+            return '\tout.{target} = {source};\n'.format(target=self.output_arg_name, source=source_struct_name + '.' + self.output_arg_name)
         elif self.type == STRING_TYPE:
             assert self.depth == 0
             # read the addr out of the USDT arg and read the C-string into our output struct
