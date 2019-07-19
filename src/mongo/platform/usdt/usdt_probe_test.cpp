@@ -243,14 +243,15 @@ bool USDTProbeTest::runTest(const std::vector<USDTProbe>& probes,
     // collect & verify test results
     std::string line;
     int size;
-    size_t numPassed = 0;
+    size_t probes_passed = 0;
     for (auto probe : probes) {
         std::cout << "Testing [" << probe.name << "]" << std::endl;
         line = readLine(_fdRd);
         ASSERT_EQ(line, probe.name);
 
-        bool passed = false;
+        int hits_passed = 0;
         for (int hit = 0; hit < probe.hits; hit++) {
+            bool passed = false;
             line = readLine(_fdRd);
             uassertStatusOK(mongo::NumberParser::strToAny()(line.c_str(), &size));
             line = readUpTo(_fdRd, size);
@@ -272,17 +273,18 @@ bool USDTProbeTest::runTest(const std::vector<USDTProbe>& probes,
 
             if (passed) {
                 std::cout << "PASSED [" << (hit + 1) << '/' << probe.hits << ']' << std::endl;
+                ++hits_passed;
             } else {
                 std::cout << "FAILED [" << (hit + 1) << '/' << probe.hits << ']' << std::endl;
                 std::cout << err.str() << std::endl;
             }
         }
-        if (passed) {
-            numPassed++;
+        if (hits_passed == probe.hits) {
+            probes_passed++;
         }
     }
 
-    return numPassed == probes.size();
+    return probes_passed == probes.size();
 }
 
 }  // namespace mongo
