@@ -151,7 +151,7 @@ public:
     static std::string toJSONStr(const std::vector<USDTProbe>& probes);
 };
 
-#define USDT_PROBE_TEST()                              \
+#define USDT_PROBE_TEST_MAIN()                         \
     void testProbes(mongo::USDTProbeTest& tester);     \
     int main(int argc, char** argv) {                  \
         ASSERT_EQ(argc, 3);                            \
