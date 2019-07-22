@@ -33,6 +33,7 @@
 #include <vector>
 
 #include "mongo/base/parse_number.h"
+#include "mongo/base/status.h"
 #include "mongo/unittest/unittest.h"
 #include "mongo/util/assert_util.h"
 
@@ -74,9 +75,13 @@ public:
 
     std::string toJSONStr() const;
 
-    static std::string getNextAsString(std::stringstream&);
-    static int getNextAsInt(std::stringstream&);
-    static void* getNextAsPtr(std::stringstream& ss);
+    static std::string getNextAsString(std::stringstream&, Status&);
+    static int getNextAsInt(std::stringstream&, Status&);
+    static void* getNextAsPtr(std::stringstream&, Status&);
+
+    static void expectEqualInts(std::stringstream&, int expected, Status&);
+    static void expectEqualStrings(std::stringstream&, const std::string& expected, Status&); 
+    static void expectEqualPtrs(std::stringstream&, void* expected, Status&);
 };
 
 std::ostream& operator<<(std::ostream& out, const USDTProbeArg& arg);
@@ -88,11 +93,11 @@ class USDTProbe {
 public:
     const int hits;
     const std::string name;
-    const std::function<void(std::stringstream&, int)> onResult;
+    const std::function<void(std::stringstream&, int, Status&)> onResult;
 
     USDTProbe(const std::string name,
               int hits,
-              const std::function<void(std::stringstream&, int)> onResult)
+              const std::function<void(std::stringstream&, int, Status&)> onResult)
         : _argc(0), hits(hits), name(name), onResult(onResult) {}
 
     USDTProbe& withArg(USDTProbeArg arg) {

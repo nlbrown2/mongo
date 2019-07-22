@@ -29,6 +29,7 @@
 
 #include "usdt_probe_test.h"
 
+#include <fmt/format.h>
 #include <fcntl.h>
 #include <iostream>
 #include <sys/stat.h>
@@ -56,14 +57,17 @@ std::ostream& operator<<(std::ostream& out, const USDTProbeType& type) {
     return out;
 }
 
-std::string USDTProbeArg::getNextAsString(std::stringstream& in) {
+std::string USDTProbeArg::getNextAsString(std::stringstream& in, Status& status) {
     std::stringstream ssOut;
     char c;
 
     // toss out whitespace
     in >> std::ws;
     in >> c;
-    ASSERT(c == '"');
+    if (c != '"') {
+        status = Status(ErrorCodes::FailedToParse, "Expected a string, but it was not preceded by a \"");
+        return "";
+    }
 
     while (in.get(c)) {
         if (c == '\\' && in.peek() == '"') {
@@ -77,24 +81,55 @@ std::string USDTProbeArg::getNextAsString(std::stringstream& in) {
     }
 
     std::string out = ssOut.str();
-    ASSERT(out.length() > 0);
+    if (out.length() == 0) {
+        status = Status(ErrorCodes::FailedToParse, "Did not read in a string");
+    }
     return out;
 }
 
-int USDTProbeArg::getNextAsInt(std::stringstream& in) {
+int USDTProbeArg::getNextAsInt(std::stringstream& in, Status& status) {
     std::string numStr;
     int num;
 
     in >> numStr;
-    uassertStatusOK(mongo::NumberParser::strToAny()(numStr.c_str(), &num));
+    status = mongo::NumberParser::strToAny()(numStr.c_str(), &num);
 
     return num;
 }
 
-void* USDTProbeArg::getNextAsPtr(std::stringstream& in) {
+void* USDTProbeArg::getNextAsPtr(std::stringstream& in, Status& status) {
     void* res;
-    ASSERT(in >> std::hex >> res);
+    if (!(in >> std::hex >> res)) {
+        status = Status(ErrorCodes::FailedToParse, "Failed to read in pointer argument");
+    }
     return res;
+}
+
+void USDTProbeArg::expectEqualInts(std::stringstream &res, int expected, Status& status) {
+    if (!status.isOK()) return;
+
+    int actual = mongo::USDTProbeArg::getNextAsInt(res, status);
+    if (status.isOK() && actual != expected) {
+        status = Status(ErrorCodes::BadValue, fmt::format("Expected {}, actual {}", expected, actual));
+    }
+}
+
+void USDTProbeArg::expectEqualStrings(std::stringstream &res, const std::string& expected, Status& status) {
+    if (!status.isOK()) return;
+
+    std::string actual = mongo::USDTProbeArg::getNextAsString(res, status);
+    if (status.isOK() && actual.compare(expected)) {
+        status = Status(ErrorCodes::BadValue, fmt::format("Expected {}, actual {}", expected, actual));
+    }
+}
+
+void USDTProbeArg::expectEqualPtrs(std::stringstream &res, void* expected, Status& status) {
+    if (!status.isOK()) return;
+
+    void* actual = mongo::USDTProbeArg::getNextAsPtr(res, status);
+    if (status.isOK() && actual != expected) {
+        status = Status(ErrorCodes::BadValue, fmt::format("Expected {}, actual {}", expected, actual));
+    }
 }
 
 std::string USDTProbeArg::toJSONStr() const {
@@ -259,7 +294,9 @@ bool USDTProbeTest::runTest(const std::vector<USDTProbe>& probes,
             std::stringstream err;
 
             try {
-                probe.onResult(res, hit);
+                Status status = Status::OK();
+                probe.onResult(res, hit, status);
+                uassertStatusOK(status);
                 passed = true;
             } catch (const unittest::TestAssertionFailureException& e) {
                 err << e.toString() << '\n';
