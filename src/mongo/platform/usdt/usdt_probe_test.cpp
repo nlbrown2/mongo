@@ -29,8 +29,8 @@
 
 #include "usdt_probe_test.h"
 
-#include <fmt/format.h>
 #include <fcntl.h>
+#include <fmt/format.h>
 #include <iostream>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -65,7 +65,8 @@ std::string USDTProbeArg::getNextAsString(std::stringstream& in, Status& status)
     in >> std::ws;
     in >> c;
     if (c != '"') {
-        status = Status(ErrorCodes::FailedToParse, "Expected a string, but it was not preceded by a \"");
+        status =
+            Status(ErrorCodes::FailedToParse, "Expected a string, but it was not preceded by a \"");
         return "";
     }
 
@@ -105,30 +106,38 @@ void* USDTProbeArg::getNextAsPtr(std::stringstream& in, Status& status) {
     return res;
 }
 
-void USDTProbeArg::expectEqualInts(std::stringstream &res, int expected, Status& status) {
-    if (!status.isOK()) return;
+void USDTProbeArg::expectEqualInts(std::stringstream& res, int expected, Status& status) {
+    if (!status.isOK())
+        return;
 
     int actual = mongo::USDTProbeArg::getNextAsInt(res, status);
     if (status.isOK() && actual != expected) {
-        status = Status(ErrorCodes::BadValue, fmt::format("Expected {}, actual {}", expected, actual));
+        status =
+            Status(ErrorCodes::BadValue, fmt::format("Expected {}, actual {}", expected, actual));
     }
 }
 
-void USDTProbeArg::expectEqualStrings(std::stringstream &res, const std::string& expected, Status& status) {
-    if (!status.isOK()) return;
+void USDTProbeArg::expectEqualStrings(std::stringstream& res,
+                                      const std::string& expected,
+                                      Status& status) {
+    if (!status.isOK())
+        return;
 
     std::string actual = mongo::USDTProbeArg::getNextAsString(res, status);
     if (status.isOK() && actual.compare(expected)) {
-        status = Status(ErrorCodes::BadValue, fmt::format("Expected {}, actual {}", expected, actual));
+        status =
+            Status(ErrorCodes::BadValue, fmt::format("Expected {}, actual {}", expected, actual));
     }
 }
 
-void USDTProbeArg::expectEqualPtrs(std::stringstream &res, void* expected, Status& status) {
-    if (!status.isOK()) return;
+void USDTProbeArg::expectEqualPtrs(std::stringstream& res, void* expected, Status& status) {
+    if (!status.isOK())
+        return;
 
     void* actual = mongo::USDTProbeArg::getNextAsPtr(res, status);
     if (status.isOK() && actual != expected) {
-        status = Status(ErrorCodes::BadValue, fmt::format("Expected {}, actual {}", expected, actual));
+        status =
+            Status(ErrorCodes::BadValue, fmt::format("Expected {}, actual {}", expected, actual));
     }
 }
 

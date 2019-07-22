@@ -123,10 +123,8 @@ void multipleStringStructTest() {
 
 USDT_PROBE_TEST_MAIN() {
     // multiple empty probes test
-    ASSERT(tester.runTest(
-        mongo::USDTProbe("aProbe", 15,  [](auto& res, int hit, auto& status) {}),
-        multipleEmptyProbesTest)
-    );
+    ASSERT(tester.runTest(mongo::USDTProbe("aProbe", 15, [](auto& res, int hit, auto& status) {}),
+                          multipleEmptyProbesTest));
 
     // test INT args
     std::vector<mongo::USDTProbe> intProbes{
@@ -188,7 +186,7 @@ USDT_PROBE_TEST_MAIN() {
                          1,
                          [](auto& res, int hit, auto& status) {
                              mongo::USDTProbeArg::expectEqualStrings(res, "bard", status);
-                             mongo::USDTProbeArg::expectEqualStrings(res, "cantaLoupe!", status); 
+                             mongo::USDTProbeArg::expectEqualStrings(res, "cantaLoupe!", status);
                          })
             .withStringArg(5)
             .withStringArg(12));
@@ -208,7 +206,8 @@ USDT_PROBE_TEST_MAIN() {
     strProbes.push_back(probe12Str);
 
     strProbes.push_back(mongo::USDTProbe("probeComplex", 1, [](auto& res, int hit, auto& status) {
-                            mongo::USDTProbeArg::expectEqualStrings(res, "hello, World!\n \"salut, monde!\"", status);
+                            mongo::USDTProbeArg::expectEqualStrings(
+                                res, "hello, World!\n \"salut, monde!\"", status);
                         }).withStringArg(34));
 
     ASSERT(tester.runTest(strProbes, strProbesTest));
@@ -239,7 +238,7 @@ USDT_PROBE_TEST_MAIN() {
         mongo::USDTProbe("multipleStruct",
                          1,
                          [](auto& res, int hit, auto& status) {
-                             mongo::USDTProbeArg::expectEqualInts(res, 25, status); 
+                             mongo::USDTProbeArg::expectEqualInts(res, 25, status);
                              mongo::USDTProbeArg::expectEqualStrings(res, "hello", status);
                          })
             .withArg(mongo::USDTProbeArg(mongo::USDTProbeType::STRUCT).withIntMember())
@@ -267,7 +266,8 @@ USDT_PROBE_TEST_MAIN() {
     ASSERT(tester.runTest(mongo::USDTProbe("ptrProbe",
                                            1,
                                            [ptr](auto& res, int hit, auto& status) {
-                                               mongo::USDTProbeArg::expectEqualPtrs(res, ptr, status);
+                                               mongo::USDTProbeArg::expectEqualPtrs(
+                                                   res, ptr, status);
                                            })
                               .withPtrArg(),
                           [ptr]() { MONGO_USDT(ptrProbe, ptr); }));
@@ -276,7 +276,7 @@ USDT_PROBE_TEST_MAIN() {
         mongo::USDTProbe("ptrStruct",
                          1,
                          [ptr](auto& res, int hit, auto& status) {
-                            mongo::USDTProbeArg::expectEqualPtrs(res, ptr, status);
+                             mongo::USDTProbeArg::expectEqualPtrs(res, ptr, status);
                          })
             .withArg(mongo::USDTProbeArg(mongo::USDTProbeType::STRUCT)
                          .withMember(mongo::USDTProbeArg(mongo::USDTProbeType::POINTER))),

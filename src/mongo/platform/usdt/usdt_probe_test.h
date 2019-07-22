@@ -80,7 +80,7 @@ public:
     static void* getNextAsPtr(std::stringstream&, Status&);
 
     static void expectEqualInts(std::stringstream&, int expected, Status&);
-    static void expectEqualStrings(std::stringstream&, const std::string& expected, Status&); 
+    static void expectEqualStrings(std::stringstream&, const std::string& expected, Status&);
     static void expectEqualPtrs(std::stringstream&, void* expected, Status&);
 };
 
