@@ -67,15 +67,16 @@ STRUCT_TYPE = "struct"
 POINTER_TYPE = 'ptr'
 
 TYPE_DECL = {
-    INT_TYPE: "int {arg_name}",
-    STRING_TYPE: "char {arg_name}[{length}]",
-    STRUCT_TYPE: "struct " + STRUCT_NAME + " {arg_name}",
-    POINTER_TYPE: "void* {arg_name}"
+    INT_TYPE: "int {arg_name}", STRING_TYPE: "char {arg_name}[{length}]",
+    STRUCT_TYPE: "struct " + STRUCT_NAME + " {arg_name}", POINTER_TYPE: "void* {arg_name}"
 }
+
 
 def declare(arg_type, arg_name, probe_name, depth, index, length):
     assert arg_type in TYPE_DECL
-    return TYPE_DECL[arg_type].format(probe_name=probe_name, arg_name=arg_name, depth=depth, index=index, length=length)
+    return TYPE_DECL[arg_type].format(probe_name=probe_name, arg_name=arg_name, depth=depth,
+                                      index=index, length=length)
+
 
 def reduce(fn, items):
     return ''.join(map(fn, items))

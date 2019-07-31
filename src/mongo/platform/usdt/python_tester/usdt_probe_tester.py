@@ -9,6 +9,7 @@ if os.getuid() != 0:
     print("USDT tests must be run as sudo.")
     exit(1)
 
+
 def main():
     """ parse command line args and run the tester """
     # parse command line args
@@ -28,6 +29,7 @@ def main():
 
     if not test_passes:
         exit(1)
+
 
 if __name__ == '__main__':
     main()

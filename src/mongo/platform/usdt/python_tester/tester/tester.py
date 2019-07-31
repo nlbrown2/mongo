@@ -8,6 +8,7 @@ from .generator import Probe, Arg, Generator
 PROBE_ARRAY_KEY = "probes"
 PID_KEY = 'pid'
 
+
 def load_json(reader):
     """ parses the json it reads in from reader. Returns a list of generator.Probe objects or an int (if given a pid) """
     # first reads an integer that specifies the size of the JSON coming over the pipe
@@ -28,8 +29,10 @@ def load_json(reader):
         return int(json_obj[PID_KEY])
     return [Probe(p) for p in json_obj[PROBE_ARRAY_KEY]]
 
+
 def callback_gen(bpf_obj, probe, probe_hit_counts, output_arr):
     """ returns a function that can handle and validate the args passed to probe probe_name. Updates probe_hit_counts """
+
     def process_callback(cpu, data, size):
         """ on every event, this callback will trigger with new data. It will iterate over the specified args, validating each one """
         del cpu, size
@@ -40,13 +43,18 @@ def callback_gen(bpf_obj, probe, probe_hit_counts, output_arr):
         value_string += '\n'
         output_arr.append(value_string)
         probe_hit_counts[probe.name] += 1
+
     return process_callback
+
 
 def event_dropped_gen(probe):
     """ returns a function to be called when a probe is dropped """
+
     def event_dropped(_):
         print("WARNING: {} DROPPED.", probe.name)
+
     return event_dropped
+
 
 def attach_bpf(bpf_text, probes, pid, probe_hit_counts, output_arrays):
     """ creates usdt_probes and attaches them to a BPF object.
@@ -61,6 +69,7 @@ def attach_bpf(bpf_text, probes, pid, probe_hit_counts, output_arrays):
         bpf[probe.name].open_perf_buffer(probeCallback, lost_cb=event_dropped_gen(probe))
 
     return bpf
+
 
 def stringify_arg(event, arg):
     """returns the value for the provided argument within the event as a stringified representation"""
@@ -79,12 +88,14 @@ def stringify_arg(event, arg):
     res += ' '
     return res
 
+
 def expecting_more_probe_hits(probes, probe_hit_counts):
     """ determines if the testing program expects more probes to be hit or not """
     for probe in probes:
         if probe.hits > probe_hit_counts[probe.name]:
             return True
     return False
+
 
 def run(reader, writer):
     """ run through all the tests specified by reader and provide results to writer """
@@ -106,16 +117,15 @@ def run(reader, writer):
         bpf_text = gen.finish()
         print("==================BPF PROGRAM=================")
         print(bpf_text)
-        probe_hit_counts = {probe.name : 0 for probe in probes}
-        probe_values = {probe.name : [] for probe in probes}
+        probe_hit_counts = {probe.name: 0 for probe in probes}
+        probe_values = {probe.name: [] for probe in probes}
         bpf_obj = attach_bpf(bpf_text, probes, pid, probe_hit_counts, probe_values)
 
         # tell unittest driver that we have finished attaching our probes
         writer.write(b'>')
 
-
         while expecting_more_probe_hits(probes, probe_hit_counts):
-            bpf_obj.perf_buffer_poll() # failing tests will eventually time out
+            bpf_obj.perf_buffer_poll()  # failing tests will eventually time out
 
         # test if the probes are going to be hit one more time
         # the timeout is in miliseconds (same as syscall poll)

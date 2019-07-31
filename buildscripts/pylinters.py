@@ -61,7 +61,7 @@ def is_interesting_file(file_name):
     directory_blacklist = ["src/third_party"]
     if file_name in file_blacklist or file_name.startswith(tuple(directory_blacklist)):
         return False
-    directory_list = ["buildscripts", "pytests"]
+    directory_list = ["buildscripts", "pytests", "src/mongo/platform/usdt/python_tester"]
     return file_name.endswith(".py") and file_name.startswith(tuple(directory_list))
 
 

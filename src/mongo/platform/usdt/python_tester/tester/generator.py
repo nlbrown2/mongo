@@ -1,8 +1,10 @@
 """ module that can generate c-style eBPF programs given a list of probes to attach to and their arguments """
 from .util import *
 
+
 class Probe:
     """ Representation of a probe specification useful for code generation. """
+
     def __init__(self, probe_dict):
         assert isinstance(probe_dict, dict)
 
@@ -12,8 +14,10 @@ class Probe:
         self.hits = probe_dict[PROBE_HIT_KEY]
         assert isinstance(self.hits, int)
 
-        self.args = [Arg(arg, self.hits, self.name, index)
-                        for index, arg in enumerate(probe_dict[PROBE_ARGS_KEY])]
+        self.args = [
+            Arg(arg, self.hits, self.name, index)
+            for index, arg in enumerate(probe_dict[PROBE_ARGS_KEY])
+        ]
 
         self.function_name = PROBE_FN_NAME.format(self.name)
         self.output_struct_name = BPF_PERF_OUTPUT_STRUCT_NAME.format(self.name)
@@ -23,8 +27,8 @@ class Probe:
 
     def bpf_perf_output_gen(self):
         c_prog = BPF_PERF_OUTPUT.format(self.name)
-        c_prog += STRUCT.format(self.output_struct_name,
-                                reduce(Arg.get_output_struct_def, self.args))
+        c_prog += STRUCT.format(self.output_struct_name, reduce(Arg.get_output_struct_def,
+                                                                self.args))
         return c_prog
 
     def entry_fn_gen(self):
@@ -33,8 +37,10 @@ class Probe:
         fn_content += BPF_PERF_SUBMIT_STMT.format(self.name)
         return PROBE_ENTRY_FN.format(self.function_name, fn_content)
 
+
 class Arg:
     """ Representation of an argument to a Probe holding information about where it can be located. """
+
     def __init__(self, arg_dict, num_hits, probe_name, index, depth=0):
         assert isinstance(arg_dict, dict)
 
@@ -60,13 +66,14 @@ class Arg:
             self.length = 0
 
         if self.type == STRUCT_TYPE:
-            self.output_struct_name = STRUCT_NAME.format(arg_name = self.output_arg_name,
-                                                         probe_name = self.probe_name,
-                                                         depth = self.depth,
-                                                         index = self.index)
+            self.output_struct_name = STRUCT_NAME.format(arg_name=self.output_arg_name,
+                                                         probe_name=self.probe_name,
+                                                         depth=self.depth, index=self.index)
 
-            self.fields = [Arg(val, num_hits, probe_name, child_index, depth=depth+1)
-                            for child_index, val in enumerate(arg_dict[ARG_STRUCT_FIELDS_KEY])]
+            self.fields = [
+                Arg(val, num_hits, probe_name, child_index, depth=depth + 1)
+                for child_index, val in enumerate(arg_dict[ARG_STRUCT_FIELDS_KEY])
+            ]
 
             for field in self.fields:
                 field.output_arg_name += ARG_NAME_CAT.format(self.index)
@@ -75,12 +82,9 @@ class Arg:
     def get_c_decl(self):
         """ Returns the type and name of this argument in a C program.
             The name should be unique to an instance but the same across instances. """
-        return declare(arg_type=self.type,
-                       probe_name = self.probe_name,
-                       arg_name = self.output_arg_name,
-                       depth = self.depth,
-                       index = self.index,
-                       length = self.length)
+        return declare(arg_type=self.type, probe_name=self.probe_name,
+                       arg_name=self.output_arg_name, depth=self.depth, index=self.index,
+                       length=self.length)
 
     def before_output_gen(self):
         """ Returns a string of any code that needs to be emitted before the output struct containing this argument is emitted.
@@ -114,9 +118,8 @@ class Arg:
                 # is determined, and then a bpf_probe_read_str is issued, reading the string from userspace once more
                 # See https://github.com/iovisor/bcc/issues/691 for updates on string builtin functions
                 result = BPF_READ_STRUCT_MEMBER_STR.format(
-                            source = MEMBER_GET_CAT.format(source_struct_name, self.output_arg_name),
-                            target = self.output_arg_name,
-                            str_addr_name = self.output_addr_name)
+                    source=MEMBER_GET_CAT.format(source_struct_name, self.output_arg_name),
+                    target=self.output_arg_name, str_addr_name=self.output_addr_name)
                 return result
 
             elif self.type == STRUCT_TYPE:
@@ -128,28 +131,23 @@ class Arg:
 
                 return result
 
-            return BPF_PERF_OUTPUT_MEMBER_ASSN.format(
-                        target=self.output_arg_name,
-                        source_struct=source_struct_name,
-                        source_struct_member=self.output_arg_name)
+            return BPF_PERF_OUTPUT_MEMBER_ASSN.format(target=self.output_arg_name,
+                                                      source_struct=source_struct_name,
+                                                      source_struct_member=self.output_arg_name)
 
         elif self.type == STRING_TYPE:
             assert self.depth == 0
             # read the addr out of the USDT arg and read the C-string into our output struct
-            return BPF_READ_STR.format(
-                        probe_name=self.probe_name,
-                        arg_num=self.index + 1,
-                        addr_name=self.output_addr_name,
-                        out_member=self.output_arg_name)
+            return BPF_READ_STR.format(probe_name=self.probe_name, arg_num=self.index + 1,
+                                       addr_name=self.output_addr_name,
+                                       out_member=self.output_arg_name)
 
         elif self.type == STRUCT_TYPE:
             assert self.depth == 0
             # read in the struct from the USDT arg pointer
             struct_name = BASE_STRUCT_NAME.format(probe_name=self.probe_name, index=self.index)
-            result = BPF_READ_STRUCT.format(probe_name=self.probe_name,
-                                            index=self.index,
-                                            struct_name=struct_name,
-                                            arg_num=self.index + 1)
+            result = BPF_READ_STRUCT.format(probe_name=self.probe_name, index=self.index,
+                                            struct_name=struct_name, arg_num=self.index + 1)
 
             for arg in self.fields:
                 result += arg.fill_output_struct(struct_name) + '\n'
@@ -159,8 +157,10 @@ class Arg:
             # read the argument directly
             return BPF_READ_ARG.format(num=self.index + 1, output_member_name=self.output_arg_name)
 
+
 class Generator:
     """ Responsible for orchestrating the generation of code for each probe that gets added to it. """
+
     def __init__(self):
         self.c_prog = HEADERS
 
