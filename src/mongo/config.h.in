@@ -35,6 +35,9 @@
 #define MONGO_CONFIG_SSL_PROVIDER_WINDOWS 2
 #define MONGO_CONFIG_SSL_PROVIDER_APPLE 3
 
+// List of possible SDT providers
+#define MONGO_CONFIG_USDT_PROVIDER_SDT 1
+
 // Define altivec vec_vbpermq output index
 @mongo_config_altivec_vec_vbpermq_output_index@
 
@@ -89,7 +92,7 @@
 // Defined if USDT probes are enabled
 @mongo_config_usdt_enabled@
 
-// Set to which provider defines USDT
+// Defined if USDT probes are enabled with chosen USDT provider
 @mongo_config_usdt_provider@
 
 // Defined if WiredTiger storage engine is enabled

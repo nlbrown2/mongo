@@ -33,8 +33,10 @@
 
 #ifdef MONGO_CONFIG_USDT_ENABLED
 
-#if MONGO_CONFIG_USDT_PROVIDER == SDT
+#if MONGO_CONFIG_USDT_PROVIDER == MONGO_CONFIG_USDT_PROVIDER_SDT
 #include <sys/sdt.h>
+#else
+#error "unsupported USDT provider"
 #endif
 
 #define MONGO_USDT_SUFFIX_(...) \

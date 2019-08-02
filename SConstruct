@@ -3660,7 +3660,7 @@ def doConfigure(myenv):
              myenv.ConfError("enable-usdt-probes flag was set to on, but no USDT provider could be found")
         elif usdt_provider:
             conf.env.SetConfigHeaderDefine("MONGO_CONFIG_USDT_ENABLED")
-            conf.env.SetConfigHeaderDefine("MONGO_CONFIG_USDT_PROVIDER", usdt_provider)
+            conf.env.SetConfigHeaderDefine("MONGO_CONFIG_USDT_PROVIDER", "MONGO_CONFIG_USDT_PROVIDER_" + usdt_provider.upper())
     return conf.Finish()
 
 
